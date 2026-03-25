@@ -25,22 +25,22 @@ This is the universal structure. The implementation is specific to your codebase
 ## The harness loop
 
 ```
-/harness-setup (shape) → use generated skills (real work) → /harness-retro (reflect) → ...
+/harness-setup (shape) → use generated skills (real work) → /harness-learn (reflect) → ...
 ```
 
-**Explore.** `/harness-setup` scans your codebase, visualizes constraints in your browser, and generates a **launcher + phase skills** — each phase is a focused skill (40-140 lines) with your actual commands, exit gates, and recording built in.
+**Setup.** `/harness-setup` scans your codebase, assesses workflow readiness, and generates a **launcher + phase skills** — each phase is a focused skill (40-140 lines) with your actual commands, exit gates, and recording built in.
 
 **Use.** Invoke the launcher with a task. The driver loops through phase skills — each one does focused work and records progress. The state file tracks where you are.
 
-**Reflect.** `/harness-retro` reads the recorded data, maps friction to specific phase skills, and suggests targeted improvements — editing specific phase skills or adding new phases when the evidence is clear.
+**Reflect.** `/harness-learn` reads the recorded data, maps friction to specific phase skills, and suggests targeted improvements — editing specific phase skills or adding new phases when the evidence is clear.
 
 **Reshape.** Your workflow evolves with each round. Phase skills get sharper. New phases appear when friction demands them.
 
 ## What ships
 
 ```
-/harness-setup      → scan codebase, visualize, generate launcher + phase skills
-/harness-retro        → review friction per phase, reshape, regenerate
+/harness-setup        → scan codebase, assess, generate launcher + phase skills
+/harness-learn        → review friction per phase, reshape, regenerate
 harness-refs   → core principles, anti-patterns, concept library (hub)
 harness-engine        → universal state machine — loops through phase skills via state file
 ```
@@ -53,8 +53,7 @@ harness-engine        → universal state machine — loops through phase skills
 HARNESS.md               # human-readable workflow documentation (committed)
 .harness/
 ├── conversations/        # per-implementation records (phase progress, decisions, evidence)
-├── retros/               # past retro results and friction snapshots
-└── state.json            # adopted concepts, accumulated metrics, harness state
+└── retros/               # past retro results and friction snapshots
 ```
 
 ## The concept library

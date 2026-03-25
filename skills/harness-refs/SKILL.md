@@ -103,7 +103,7 @@ These concepts address specific friction patterns that emerge as you use the har
 
 **Concept:** Externalize progress, decisions, and discoveries to files that survive session drops. The conversation file is the single source of truth — not agent memory.
 
-**This is baked into every generated implementation skill** — agents record progress to `.harness/conversations/` at natural phase transitions. This data also powers `/harness-retro`. It's not a separate concept to adopt.
+**This is baked into every generated implementation skill** — agents record progress to `.harness/conversations/` at natural phase transitions. This data also powers `/harness-learn`. It's not a separate concept to adopt.
 
 ### Environment Isolation
 → [environment-management.md](reference/environment-management.md)
@@ -162,7 +162,7 @@ These concepts address specific friction patterns that emerge as you use the har
 
 Concepts are coaching material — patterns and principles. They don't ship as pre-built skills because every codebase needs different implementations.
 
-When a concept is adopted (via `/harness-setup` or `/harness-retro`), it **augments specific phase skills** — adding steps, checklists, or entirely new phases to the lifecycle. The concept-to-phase mapping determines what changes:
+When a concept is adopted (via `/harness-setup` or `/harness-learn`), it **augments specific phase skills** — adding steps, checklists, or entirely new phases to the lifecycle. The concept-to-phase mapping determines what changes:
 
 | Concept | Phases affected | What changes |
 |---------|----------------|-------------|
@@ -177,7 +177,7 @@ When a concept is adopted (via `/harness-setup` or `/harness-retro`), it **augme
 | AC Discipline | pickup | Add AC validation — stop if vague |
 | Architecture Lock-In | design | Add design doc + human lock step |
 | Vertical Feature Slices | N/A (coaching) | Issue creation guidance |
-| Self-Improvement Loop | N/A (baked in) | Handled by `/harness-retro` |
+| Self-Improvement Loop | N/A (baked in) | Handled by `/harness-learn` |
 
 This means every harness is unique. After `/harness-setup`:
 - A solo Go developer might have: a launcher + 4 phase skills (understand → execute → verify → ship) and nothing else
@@ -190,6 +190,6 @@ The generated skills use the **driver + launcher + phase skills architecture**: 
 
 The right amount of process is the minimum needed to ship reliably. If you're spending more time on ceremony than code, simplify. If quality issues slip through, adopt the concept that addresses them.
 
-Run `/harness-setup` to shape your harness. Use the generated skills on real work. Run `/harness-retro` to reflect and reshape. The workflow gets better every round because the skills get more specific to your actual needs.
+Run `/harness-setup` to shape your harness. Use the generated skills on real work. Run `/harness-learn` to reflect and reshape. The workflow gets better every round because the skills get more specific to your actual needs.
 
-The harness loop: `/harness-setup` (shape) → real work → `/harness-retro` (reflect) → `/harness-setup` ...
+The harness loop: `/harness-setup` (shape) → real work → `/harness-learn` (reflect) → `/harness-setup` ...

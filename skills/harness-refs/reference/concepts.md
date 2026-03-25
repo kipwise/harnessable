@@ -1,6 +1,6 @@
 # Concepts
 
-A mapping from workflow friction to the concept that addresses it. Use this as a coaching reference — when `/harness-retro` notices a friction pattern, it points here to suggest what to adopt.
+A mapping from workflow friction to the concept that addresses it. Use this as a coaching reference — when `/harness-learn` notices a friction pattern, it points here to suggest what to adopt.
 
 This isn't a progression. Different teams discover different friction in different orders. The concepts are independent — adopt what you need, skip what you don't.
 
@@ -81,7 +81,7 @@ Each concept has:
 5. After shipping, tear down everything: stop server, drop DB, remove worktree
 
 **Reference:** [environment-management.md](environment-management.md)
-**When adopted:** `/harness-setup` or `/harness-retro` generates a codebase-specific environment setup skill.
+**When adopted:** `/harness-setup` or `/harness-learn` generates a codebase-specific environment setup skill.
 
 ---
 
@@ -102,7 +102,7 @@ Each concept has:
 4. Fix remaining findings, re-verify
 
 **Reference:** [quality-assurance.md](quality-assurance.md)
-**When adopted:** `/harness-setup` or `/harness-retro` generates a codebase-specific quality review skill.
+**When adopted:** `/harness-setup` or `/harness-learn` generates a codebase-specific quality review skill.
 
 ---
 
@@ -152,7 +152,7 @@ Define profiles in your harness context:
 6. Wave branch merges to main as a single reviewed unit
 
 **Reference:** [agent-coordination.md](agent-coordination.md)
-**When adopted:** `/harness-setup` or `/harness-retro` generates a codebase-specific orchestration skill.
+**When adopted:** `/harness-setup` or `/harness-learn` generates a codebase-specific orchestration skill.
 
 ---
 
@@ -220,7 +220,7 @@ Define profiles in your harness context:
 4. Track what worked well, not just what broke — codify validated approaches
 
 **Reference:** [self-improvement.md](self-improvement.md)
-**Built into Harnessable:** this is what `/harness-retro` does. Not a separate concept to adopt — it's part of the harness loop.
+**Built into Harnessable:** this is what `/harness-learn` does. Not a separate concept to adopt — it's part of the harness loop.
 
 ---
 

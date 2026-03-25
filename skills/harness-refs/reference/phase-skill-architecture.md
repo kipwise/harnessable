@@ -263,7 +263,7 @@ Profiles control which phases are included. Skipped phases get `{ "status": "ski
 
 ## Concept-to-Phase Mapping
 
-When concepts are adopted (via `/harness-setup` or `/harness-retro`), they augment specific phase skills:
+When concepts are adopted (via `/harness-setup` or `/harness-learn`), they augment specific phase skills:
 
 | Concept | Phases affected | What changes |
 |---------|----------------|-------------|
@@ -278,7 +278,7 @@ When concepts are adopted (via `/harness-setup` or `/harness-retro`), they augme
 | **AC Discipline** | pickup | Add AC validation — stop if vague or untestable |
 | **Architecture Lock-In** | design | Add design doc requirement + human lock step |
 | **Vertical Feature Slices** | N/A (coaching) | Issue creation guidance, not a phase skill concern |
-| **Self-Improvement Loop** | N/A (baked in) | Handled by `/harness-retro`, not phase skills |
+| **Self-Improvement Loop** | N/A (baked in) | Handled by `/harness-learn`, not phase skills |
 
 ## Orchestrate Phases
 

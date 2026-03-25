@@ -1,5 +1,5 @@
 ---
-name: harness-retro
+name: harness-learn
 description: Review what happened during implementation, visualize friction patterns, and reshape your harness — fix issues, adopt concepts, generate new skills. The reflection half of the harness loop.
 user-invokable: true
 ---
@@ -8,23 +8,15 @@ user-invokable: true
 
 Review real work, see where friction occurred, and reshape your harness. Fix harness issues, adopt new concepts when the evidence is clear, and generate codebase-specific skills.
 
-**Invoke with:** `/harness-retro`
+**Invoke with:** `/harness-learn`
 
 This is the reflection half of the harness loop:
 
 ```
-/harness-setup (shape) → use generated skills (real work) → /harness-retro (reflect) → /harness-setup ...
+/harness-setup (shape) → use generated skills (real work) → /harness-learn (reflect) → /harness-setup ...
 ```
 
 ---
-
-## Delivery Mode
-
-Detect which mode is available (see Delivery Mode in `/harness-setup` for detection logic).
-
-**Terminal mode (default):** Generate friction dashboard as a standalone HTML file at `.harness/retro-dashboard.html`. Open it for the user. Ask for decisions (which findings to apply, which concepts to adopt) in the terminal conversationally.
-
-**Channel mode:** Push friction dashboard and concept suggestions as interactive screens via `mcp__harness__reply`. User clicks findings to apply → `<channel>` events. Push progress updates during apply phase. See `/harness-setup` Delivery Mode section for HTML patterns and event types.
 
 ---
 
@@ -33,7 +25,7 @@ Detect which mode is available (see Delivery Mode in `/harness-setup` for detect
 ### 1a. Harness Data
 Read from `.harness/`:
 - **`.harness/conversations/`** — all conversation files from recent implementations. Extract: phase progress, decisions, discoveries, verification evidence, harness issues, metrics. **Classify friction by phase** — which phase skill was active when the issue occurred.
-- **`.harness/state.json`** — harness-level state: adopted concepts, implementation count, last retro date.
+- **`HARNESS.md`** — current workflow, adopted concepts, generated skills.
 - **`.harness/retros/`** — past retro results. Check: were previous findings addressed? Are issues recurring?
 
 If `.harness/conversations/` is empty or sparse, note this — the retro is limited to git history and PR comments. Suggest that recording be added to the phase skills.
@@ -78,63 +70,47 @@ For each finding:
 
 Phase-level classification makes fixes precise — "harness-build-verify step 3 should run coverage before E2E" instead of "step 14 in /implement should..."
 
-## Phase 3: Visualize — Friction Dashboard
+## Phase 3: Present Friction Dashboard
 
-Generate an interactive HTML visualization showing what happened during this round of work.
-
-### Visual Design
-Match the visual style established by `/harness-setup`. If the explore visualization used the project's brand colors and fonts, use the same here for consistency. If not, use a clean neutral dark theme. Single standalone HTML file with inline CSS, no external dependencies.
-
-**Always generate a fresh visualization.** Never reuse an existing HTML file from a previous retro — the evidence and friction data are specific to this round.
-
-Start a local server and create an HTML page with:
+Present the friction analysis in the terminal.
 
 ### 3a. Workflow Replay
 Show the **state machine progression through phases** with annotations from this round:
 - Which phases were reached, which were skipped (by profile)
-- Time spent per phase (relative sizing from state file timestamps)
-- Where blockers occurred (highlighted in red) — which phase skill?
-- Where the human had to intervene (highlighted in amber)
-- What went smoothly (highlighted in green)
-- Show the driver loop: phase → checklist validation → next phase
+- Time spent per phase (from state file timestamps)
+- Where blockers occurred — which phase skill?
+- Where the human had to intervene
+- What went smoothly
 
-If multiple implementations happened, show them side by side to reveal cross-round phase patterns.
+If multiple implementations happened, compare them to reveal cross-round phase patterns.
 
 ### 3b. Friction Map
-Overlay friction signals onto the workflow:
-- Each friction point shows: what happened, how many times, total impact
+Map friction to the workflow:
+- Each friction point: what happened, how many times, total impact
 - Group by concept: "These 3 friction points all relate to Environment Isolation"
-- Show which friction points are addressed by existing skills vs. which need new concepts
+- Which friction points are addressed by existing skills vs. which need new concepts
 
 ### 3c. Harness Issue List
-Show all harness issues found, with:
+List all harness issues found:
 - Severity (turns wasted, human interventions needed)
 - Proposed fix (specific skill edit)
 - Status (new, repeated, resolved)
 
-Present the visualization to the user. Ask: "Does this match your experience? Anything I missed?"
+Ask: "Does this match your experience? Anything I missed?"
 
-## Phase 4: Visualize — Concept Suggestions
+## Phase 4: Concept Suggestions
 
-Based on the friction evidence, generate a second visualization:
+Based on the friction evidence, suggest concepts.
 
 ### 4a. Evidence-Based Suggestions
-For each concept that has concrete evidence from this round, show:
-- **Friction observed** — specific incidents from this round, mapped to the phase where they occurred
+For each concept with concrete evidence from this round:
+- **Friction observed** — specific incidents, mapped to the phase where they occurred
 - **Concept that addresses it** — one sentence
 - **What would change** — which phase skills get augmented or generated (see concept-to-phase mapping in [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md))
 - **Skill preview** — what the new/modified phase skill would look like for this codebase
 
-### 4b. Workflow Comparison
-Show the current harness workflow alongside "what it would look like" if concepts were adopted:
-- Current flow on the left
-- Modified flow on the right (with concept integrated)
-- Highlighted differences
-
-Make concepts clickable — user can toggle concepts on/off to see different configurations.
-
-### 4c. Interaction
-For each concept suggestion:
+### 4b. Interaction
+For each concept suggestion, ask the user:
 - **Adopt** — generate the skill now
 - **Not now** — acknowledge but don't re-suggest until new evidence
 - **Not relevant** — dismiss permanently for this project
@@ -144,9 +120,9 @@ For each concept suggestion:
 - Only suggest with concrete evidence from this round
 - Respect previous "not now" and "not relevant" decisions
 
-## Phase 5: Present Text Summary
+## Phase 5: Summary
 
-After the visual exploration, present a text summary:
+Present a text summary:
 
 ```
 ## Harness Retro: [round description]
@@ -190,7 +166,7 @@ For adopted concepts OR improvements to existing phase skills:
 
 ### Update Harness State
 - Write retro results to `.harness/retros/YYYY-MM-DD-retro.md`
-- Update `.harness/state.json`: increment implementation count, update concepts, record last retro date
+- Update `HARNESS.md` if concepts or workflow changed
 - **Update `HARNESS.md`** if the workflow changed: new concepts adopted, skills generated/updated, workflow steps added or removed. `HARNESS.md` should always reflect the current state of the harness.
 
 ### Update Harness Context
@@ -199,12 +175,12 @@ For adopted concepts OR improvements to existing phase skills:
 
 ### Report
 - List what changed: skill edits, new skills, context updates
-- If significant workflow reshape happened, suggest: "Run `/harness-setup` to see the updated workflow shape visually."
+- If significant workflow reshape happened, suggest: "Run `/harness-setup` to re-examine the workflow shape."
 
 ## Guidelines
 
 - **Evidence over theory.** Only suggest concepts with concrete friction from this round.
-- **Show, don't tell.** The visualizations should make friction obvious — let the user see it, not read about it.
+- **Show, don't tell.** Make friction obvious with concrete examples, not abstract descriptions.
 - **Be specific.** "Step 4 should run `pnpm build` after `pnpm install`" — not "the skill should be clearer."
 - **Don't over-correct.** One-off issues don't need permanent skill changes.
 - **Record successes.** What worked well should be codified too.
