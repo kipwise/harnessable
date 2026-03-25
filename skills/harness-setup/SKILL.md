@@ -1,161 +1,65 @@
 ---
 name: harness-setup
-description: Introduce harness engineering, explore your codebase, visualize constraints and workflow options, and generate a phased implementation workflow tailored to your repo.
+description: Scan your codebase, assess workflow readiness, and generate a phased implementation workflow tailored to your repo.
 user-invokable: true
 ---
 
-# Harness Explore
-
-Introduce the harness engineering methodology, understand your codebase through the lens of agent workflows, and generate a phased implementation workflow with clear instructions per phase — tailored to your repo.
-
-**Invoke with:** `/harness-setup`
-
-This is the exploration half of the harness loop:
+When invoked, print this banner before doing anything else:
 
 ```
-/harness-setup (shape) → use generated skills (real work) → /harness-retro (reflect) → /harness-setup ...
+██╗  ██╗ █████╗ ██████╗ ███╗   ██╗███████╗███████╗███████╗
+██║  ██║██╔══██╗██╔══██╗████╗  ██║██╔════╝██╔════╝██╔════╝
+███████║███████║██████╔╝██╔██╗ ██║█████╗  ███████╗███████╗
+██╔══██║██╔══██║██╔══██╗██║╚██╗██║██╔══╝  ╚════██║╚════██║
+██║  ██║██║  ██║██║  ██║██║ ╚████║███████╗███████║███████║
+╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝
 ```
+
+Then, before anything else, **read the existing agent-facing config** if one exists — `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `GEMINI.md`, or similar. This gives you a head start on project context, team conventions, tech stack, and workflow preferences. Use what you learn to skip redundant questions and ask smarter ones.
+
+Then output the intro and **in the same message**, use the Agent tool with `run_in_background: true` to dispatch the scan (Phase 1). Do NOT wait for the scan to return. Immediately start asking the user questions (Phase 2) in the same response.
+
+<CRITICAL>
+You MUST use `Agent` with `run_in_background: true` for the scan. Do NOT use the Explore agent type in the foreground. Do NOT wait for scan results before asking questions. The scan and questions happen simultaneously — the user should see your first question within seconds, not after a multi-minute scan.
+</CRITICAL>
+
+Output this intro, then ask your first question right after it:
+
+> **What is this?** Harnessable gives AI agents a disciplined, phased workflow for shipping software. Instead of one big prompt, every task follows focused phases — each with explicit instructions and an exit gate. A universal engine orchestrates them through a state file.
+>
+> ```
+> Launcher → Engine → [understand] → [execute] → [verify] → [ship] → COMPLETE
+> ```
+>
+> I'm scanning your codebase in the background. Let me ask you a few questions while that runs.
 
 ---
 
-## Visual Companion
+## Phase 1: Scan the Codebase (background agent)
 
-After Phase 2 (Ask), offer the visual companion. This offer MUST be its own message — do not combine it with other content.
+Use `Agent` tool with `run_in_background: true` to dispatch a scan agent. You will be notified when it completes. Do NOT poll or wait for it.
 
-> "I'd like to show you the assessment and setup flow in your browser — it's easier to see the architecture and make selections visually. Want to try it? (Requires opening a local URL)"
+The scan agent should explore:
 
-Wait for the user's response. If they decline, proceed with terminal-only mode.
+**Build & Test Tooling:** package.json (npm/yarn/pnpm), Cargo.toml, go.mod, pyproject.toml, Gemfile. Build system (turbo.json, nx.json, Makefile). Test framework (vitest/jest, pytest, go test, rspec). Linter & formatter (eslint, prettier, ruff, golangci-lint). Type checker (tsconfig.json, mypy, pyright). Monorepo structure (workspace config, package directories).
 
-### If accepted: Start the visual companion server
+**CI/CD & Deploy:** CI config (.github/workflows/, .circleci/, .gitlab-ci.yml). Deploy config (vercel.json, railway.toml, Dockerfile). Preview environments.
 
-The harness channel ships a local server at `channel/server.ts` (relative to the harnessable skills directory). Start it with the project's screen directory:
+**Project Management:** PM tool config (.linear/, jira config, GitHub project references). Issue references in commit messages (KIP-XX, PROJ-XX, #123). Branching model from git log.
 
-```bash
-# Find the server relative to this skill's location
-HARNESS_SERVER="$(dirname "$(dirname "$(find .claude/skills/harness-engine -name SKILL.md 2>/dev/null | head -1)")")/../../channel/server.ts"
+**Database & Services:** Database (PostgreSQL, MySQL, SQLite, MongoDB — migration tools, seed data). External services (APIs, message queues, caches). Dev environment (docker-compose, devcontainers, local setup scripts).
 
-# If channel/server.ts is not found locally, check common locations
-if [ ! -f "$HARNESS_SERVER" ]; then
-  for dir in /Users/*/Repo/harnessable ~/.harnessable; do
-    [ -f "$dir/channel/server.ts" ] && HARNESS_SERVER="$dir/channel/server.ts" && break
-  done
-fi
+**Repository Structure:** README and docs. Existing workflow docs (CONTRIBUTING.md, ADRs). Code organization (src layout, test location conventions).
 
-# Start the server — always pass SCREEN_DIR so it finds this project's screens
-HARNESS_SCREEN_DIR="$(pwd)/.harness/screens" bun run "$HARNESS_SERVER" &
-```
+**Installed Skills:** Scan `.claude/skills/`, `.cursor/skills/`, `.agents/`, and any plugin/skill directories for existing skills. Read each `SKILL.md` frontmatter (name, description) to understand what's available. Common examples: `frontend-design`, `test-driven-development`, `systematic-debugging`, `code-review`, `brainstorming`. These are capabilities the generated phase skills can invoke rather than duplicating.
 
-The server prints its URL to stderr: `harness: http://localhost:PORT`. Tell the user to open it.
+The agent should return a structured summary of everything found — including the list of installed skills with their names and descriptions — and what remains unclear.
 
-### How it works
+## Phase 2: Ask (in parallel with scan)
 
-The visual companion works the same way regardless of whether MCP channel is connected:
+Start asking questions immediately — don't wait for the scan to complete. Use AskUserQuestion (or the platform's equivalent) for each question. For multiple-choice, present numbered options.
 
-1. **Agent writes all screen files upfront** to `.harness/screens/` — `01-intro.html`, `02-assessment.html`, `03-selection.html`. Write content fragments (no `<!DOCTYPE>`, no `<html>`) — the server wraps them in the frame template.
-2. **Server shows screen 1** immediately. User reads, clicks Continue.
-3. **Server auto-advances** to screen 2, then screen 3 — no agent round-trip needed.
-4. **User makes selections** on screen 3 (phases, concepts). Clicks are captured automatically.
-5. **Agent collects decisions:**
-   - If MCP channel is connected: `<channel>` events arrive in the conversation automatically — agent proceeds.
-   - If no MCP: ask the user to confirm when they're done selecting (e.g., user says "OK" or "done"), then read `.harness/events.jsonl` or fetch `GET http://localhost:PORT/events` for all captured decisions.
-
-**MCP channel enhancement** (when `mcp__harness__reply` tool exists):
-- `mcp__harness__reply({ type: "status", text: "..." })` — update the status bar
-- `mcp__harness__reply({ type: "update", html: "..." })` — append to the update zone
-- `mcp__harness__reply({ type: "screen", html: "..." })` — push a screen directly (bypasses file queue)
-
-**Keep interactions simple:**
-- Use **simple buttons** for choices — not dropdowns, text inputs, or complex components
-- **One clear action per screen** — the user should always know what to click
-- **Don't over-fragment** — information-only content goes on one scrollable page with a "Continue" button at the bottom
-
-### If declined: Terminal-only mode
-
-No browser needed. Works everywhere.
-- Questions and decisions: asked in the terminal
-- Visualization: generate a single HTML file at `.harness/explore-visualization.html` and open it, but all decisions still happen in the terminal
-- Progress: reported as text in the terminal
-
-### HTML patterns (both channel and server modes)
-
-The frame template provides CSS classes. Write **content fragments** (no `<!DOCTYPE>`, no `<html>`) — the server wraps them automatically.
-
-**Single-select options** (user picks one):
-```html
-<div class="options">
-  <div class="option" data-choice="solo" data-event-type="answer" onclick="toggleSelect(this)">
-    <div class="letter">A</div>
-    <div class="content"><h3>Solo developer</h3><p>Just me and AI agents</p></div>
-  </div>
-  <div class="option" data-choice="team" data-event-type="answer" onclick="toggleSelect(this)">
-    <div class="letter">B</div>
-    <div class="content"><h3>Team</h3><p>Multiple developers</p></div>
-  </div>
-</div>
-```
-
-**Binary choices** (two separate buttons — use for adopt/skip, include/skip):
-```html
-<div style="display:flex;gap:0.75rem;margin:0.75rem 0">
-  <button class="btn" data-choice="adopt:concept-name" data-event-type="concept_decision" onclick="this.disabled=true; this.textContent='✓ Adopted'; toggleSelect(this)">Adopt</button>
-  <button class="btn btn-secondary" data-choice="skip:concept-name" data-event-type="concept_decision" onclick="this.disabled=true; this.textContent='Skipped'; toggleSelect(this)">Skip for now</button>
-</div>
-```
-
-**Confirm/Continue button:**
-```html
-<button class="btn" data-choice="confirm:step-name" data-event-type="confirm" onclick="this.textContent='✓'; this.disabled=true; toggleSelect(this)">Continue</button>
-```
-
-**Available CSS classes:** `.options`, `.option`, `.cards`, `.card`, `.card-body`, `.badge`, `.badge-green`, `.badge-amber`, `.badge-red`, `.badge-blue`, `.btn`, `.btn-secondary`, `.section`, `.divider`, `.subtitle`, `.arch`, `.arch-line`, `.mockup`, `.mockup-header`, `.mockup-body`, `.split`, `.pros-cons`
-
----
-
-## Phase 1: Scan the Codebase
-
-Before asking questions, thoroughly scan the project:
-
-### Build & Test Tooling
-- **Package manager**: package.json (npm/yarn/pnpm), Cargo.toml, go.mod, pyproject.toml, Gemfile
-- **Build system**: turbo.json, nx.json, Makefile, build scripts
-- **Test framework**: vitest/jest, pytest, go test, rspec
-- **Linter & formatter**: eslint, prettier, ruff, golangci-lint, rubocop
-- **Type checker**: tsconfig.json, mypy, pyright
-- **Monorepo structure**: workspace config, package directories
-
-### CI/CD & Deploy
-- **CI config**: .github/workflows/, .circleci/, .gitlab-ci.yml, Jenkinsfile
-- **Deploy config**: vercel.json, railway.toml, netlify.toml, Dockerfile
-- **Preview environments**: PR-based deploys, staging config
-
-### Project Management
-- **PM tool config**: .linear/, jira config, GitHub project references
-- **Issue references**: commit messages with issue IDs (KIP-XX, PROJ-XX, #123)
-- **Branching model**: branch naming patterns from git log
-
-### Database & Services
-- **Database**: PostgreSQL, MySQL, SQLite, MongoDB — migration tools, seed data
-- **External services**: APIs, message queues, caches
-- **Dev environment**: docker-compose, devcontainers, Nix, local setup scripts
-
-### Repository Structure
-- **README and docs**: Project purpose, contributing guides, architecture docs
-- **Existing workflow docs**: CONTRIBUTING.md, development guides, ADRs
-- **Code organization**: src layout, test location conventions
-
-Note what you've learned and what remains unclear.
-
-## Phase 2: Ask
-
-<HARD-GATE>
-You MUST complete Phase 2 (ask questions and get answers) BEFORE pushing any visualization screens or generating any HTML. Do NOT skip ahead to Phase 3. The visualization depends on the user's answers about team size, PM tool, pain points, and workflow preferences.
-</HARD-GATE>
-
-STOP and ask the user focused questions. Only ask what you couldn't infer from the scan.
-
-**Channel mode:** Push each question as an interactive screen with clickable options. One question at a time — wait for the `<channel type="answer">` event before pushing the next.
-
-**Terminal mode:** Ask questions directly in the terminal. Use the platform's built-in question mechanism if available (e.g., AskUserQuestion). For multiple-choice, present numbered options.
+Some questions may become unnecessary once the scan finishes (e.g., "What test framework?" if the scan found vitest). That's fine — skip questions the scan already answered if its results arrive while you're still asking.
 
 ### Questions to ask (skip what the scan already answered)
 
@@ -176,140 +80,118 @@ STOP and ask the user focused questions. Only ask what you couldn't infer from t
 
 Skip questions where the answer is clear from the scan.
 
-## Phase 3: Visualize — The Full Picture
+## Phase 3: Assess & Select
 
 <HARD-GATE>
-Do NOT start Phase 3 until Phase 1 (scan) and Phase 2 (ask) are both complete. You need the scan results AND the user's answers to generate an accurate assessment. If you skipped Phase 2, go back and ask now.
+Do NOT start Phase 3 until BOTH the background scan agent has returned AND you have the user's answers. If the scan is still running when the user finishes answering, wait for it. If the user is still answering when the scan finishes, finish asking. You need both to generate an accurate assessment.
 </HARD-GATE>
 
-After scanning and asking, present the findings to the user. The visualization has **three screens** (visual companion) or **one comprehensive page** (terminal-only fallback).
+Present the assessment and collect selections in the terminal.
 
-### Visual Companion — Three Screens
+### Step 1: Codebase Profile
 
-If the user accepted the visual companion, generate **all three screen files upfront** before the user sees anything. The server queues them and auto-advances on Continue clicks — no agent round-trip between screens.
+Output a summary of what you found:
 
-Follow this sequence:
-1. Write `01-intro.html` to `.harness/screens/` — Introduction to harness engineering (informational, Continue button)
-2. **Start the server** — the user sees screen 1 immediately in their browser
-3. While the user is reading screen 1, write `02-assessment.html` and `03-selection.html` — the server picks them up automatically
+```
+## Codebase Profile
 
-When the user clicks Continue on screen 1, the server instantly shows screen 2, then screen 3. No agent round-trip needed.
-
-After writing all three files, tell the user: "The assessment is ready in your browser. Take a look — when you're done making selections on the last screen, let me know."
-
-If MCP channel is connected, `<channel>` events arrive automatically as the user clicks. If not, wait for the user to say they're done, then read `.harness/events.jsonl` to collect their selections.
-
-**Visual quality:** If the `frontend-design:frontend-design` skill is available, use it when crafting the HTML for these screens. The explore visualization is the user's first impression of Harnessable — it should feel polished and intentional, not like raw agent output. Use the frame template's CSS classes as a foundation, but invest in layout, spacing, and visual hierarchy.
-
-#### Screen 1: Introduction to Harness Engineering
-
-A **single scrollable page** that explains the methodology. No interaction needed except a "Continue" button at the bottom. Don't break this into multiple screens — it's just information.
-
-Cover:
-- **The problem:** AI agents skip verification, lose context, ship without CI, produce inconsistent quality
-- **The solution:** Phased workflows with exit gates. Each phase is a focused skill (40-140 lines). A universal driver orchestrates them through a state file.
-- **The architecture:**
-  ```
-  Launcher → Driver → [understand] → [execute] → [verify] → [ship] → COMPLETE
-  ```
-- **The key principles:** Verify by proof, record at transitions, fail fast, improve through evidence
-- **The harness loop:** `/harness-setup` → real work → `/harness-retro` → reshape
-
-End with a Continue button:
-```html
-<button class="btn" data-choice="confirm:intro" data-event-type="confirm" onclick="this.textContent='✓'; this.disabled=true; toggleSelect(this)">Continue</button>
+| Area | Details |
+|------|---------|
+| Language | TypeScript (Node.js) |
+| Framework | Express + Prisma |
+| Tests | Vitest, 47 test files |
+| CI | GitHub Actions (3 workflows) |
+| Deploy | Railway via Dockerfile |
+| Database | PostgreSQL (Prisma migrations) |
+| PM Tool | Linear (KIP-XX pattern) |
 ```
 
-The server auto-advances to Screen 2 when the user clicks Continue.
+### Step 2: Readiness Assessment
 
-#### Screen 2: Situational Assessment
+**Be honest.** Present what's ready and what's not:
 
-A **single scrollable page** that gives an honest assessment of the codebase's readiness. This is the most important screen — it tells the user the truth about where they stand.
+**What's ready** — capabilities the codebase already has (e.g., "Strong CI pipeline with 5 checks", "Docker Compose dev environment")
 
-Include on this page:
+**What's missing** — constraints and gaps (e.g., "No environment isolation — multiple agents will conflict on ports and DB")
 
-**Codebase Profile:** Tech stack, tools, infrastructure (language, framework, test runner, CI, deploy target, database, etc.)
-
-**What's ready** (green indicators):
-- Capabilities the codebase already has (e.g., "Strong CI pipeline with 5 checks", "Docker Compose dev environment")
-
-**What's missing** (amber/red indicators):
-- Constraints and gaps (e.g., "No environment isolation — multiple agents will conflict on ports and DB")
-
-**Readiness assessment — be honest:**
+**Readiness rules:**
 - If they can't isolate environments → they're **not ready for orchestration** (multiple agents would overlap). Say this clearly. They're ready for a **single implementation agent**, which is still very useful.
 - If they have no CI → the verify phase can only run local checks. Suggest they set up CI as a next engineering step — Harnessable can't solve that for them.
 - If they have no PM tool → the pickup phase accepts plain text descriptions instead of issue fetching. That's fine.
 - Don't promise what the harness can't deliver. Be upfront about what's an engineering problem vs. what Harnessable can actually help with.
 
-**What Harnessable will set up for you:**
-- The phases that make sense for this codebase (list them)
-- The architecture: launcher + N phase skills + driver
-- What each phase does with this project's actual commands
+### Step 3: Phase Selection
 
-End with a Continue button. The server auto-advances to Screen 3 when the user clicks.
+Present mandatory and optional phases. Use AskUserQuestion for each optional phase.
 
-#### Screen 3: Selection
-
-An **interactive screen** where the user chooses their path. Use simple clickable options — buttons or option cards. No complex layouts.
-
-**Mandatory vs optional phases:**
-
-Some phases are **mandatory** — they cannot be removed. Show them as always-included (no clickable action):
+**Mandatory phases** (always included, just list them):
 - **understand** — always needed
 - **execute** — always needed
 - **verify** — always needed
 - **ship** — always needed
 
-Optional phases depend on the codebase. For each optional phase, give **two separate buttons** — Include or Skip. Don't use toggles (they're confusing when you can't de-select):
-```html
-<h3>Optional: Plan phase</h3>
-<p>Break work into discrete tasks and get approval before coding.</p>
-<div style="display:flex;gap:0.75rem;margin:0.75rem 0">
-  <button class="btn" data-choice="include:plan" data-event-type="phase_toggle" onclick="this.disabled=true; this.textContent='✓ Included'; toggleSelect(this)">Include</button>
-  <button class="btn" class="btn-secondary" data-choice="skip:plan" data-event-type="phase_toggle" onclick="this.disabled=true; this.textContent='Skipped'; toggleSelect(this)">Skip</button>
-</div>
-```
-
-Only show optional phases that are relevant to this codebase:
+**Optional phases** — ask one at a time. Only show phases relevant to this codebase:
 - **pickup** — only if PM tool detected
 - **design** — only if frontend/UI framework detected
 - **environment** — only if database or dev server detected
 - **plan** — show for non-trivial projects
 - **cleanup** — automatically included if environment is included
 
-**Concept adoption** — only show concepts the codebase is ready for. For each, provide **two separate buttons** — Adopt or Skip. Don't show concepts with unmet prerequisites (e.g., don't show orchestration if they can't isolate environments):
-```html
-<h3>Environment Isolation</h3>
-<p>Each task gets its own worktree, database, and port. Required for multi-agent work.</p>
-<div style="display:flex;gap:0.75rem;margin:0.75rem 0">
-  <button class="btn" data-choice="adopt:env-isolation" data-event-type="concept_decision" onclick="this.disabled=true; this.textContent='✓ Adopted'; toggleSelect(this)">Adopt</button>
-  <button class="btn" class="btn-secondary" data-choice="skip:env-isolation" data-event-type="concept_decision" onclick="this.disabled=true; this.textContent='Skipped'; toggleSelect(this)">Skip for now</button>
-</div>
-```
+For each optional phase, ask:
 
-**Suggested next steps** — for things Harnessable can't solve (missing CI, no PM tool), list them as engineering recommendations. Don't try to include them in the harness setup.
+> **Include the [phase] phase?**
+> [One sentence explaining what it does for this codebase.]
+> (yes / no)
 
-End with a "Generate" button:
-```html
-<button class="btn" data-choice="confirm:generate" data-event-type="confirm" onclick="this.textContent='Generating... ✓'; this.disabled=true; toggleSelect(this)">Generate My Harness</button>
-```
+### Step 4: Concept Selection
 
-Wait for the user's selections. If MCP channel is connected, `<channel type="confirm" step="generate">` arrives automatically. Otherwise, wait for the user to confirm in the terminal, then read `.harness/events.jsonl` to collect all phase/concept decisions before proceeding to Phase 4.
+Only show concepts the codebase is ready for. Don't show concepts with unmet prerequisites (e.g., don't show orchestration if they can't isolate environments).
 
-### Terminal-Only Mode (no visual companion)
+For each relevant concept, ask:
 
-If the user declined the visual companion, generate a **single standalone HTML file** at `.harness/explore-visualization.html` combining all three sections on one scrollable page. Open it for reference:
-```bash
-open .harness/explore-visualization.html   # macOS
-xdg-open .harness/explore-visualization.html # Linux
-```
+> **Adopt [concept name]?**
+> [One sentence explaining what it does.] [One sentence on what changes in the workflow.]
+> (yes / skip for now)
 
-**Visual Design:** If the `frontend-design:frontend-design` skill is available, use it. Check for design cues in the codebase (CSS variables, brand colors, UI framework). Use a clean, neutral dark theme if no cues found. Inline CSS, no external dependencies. Always generate fresh.
+### Step 5: Name Your Launcher
 
-Walk through decisions in the terminal:
-- "Take a look at the visualization. When you're ready, let me know which phases and concepts feel right."
-- Ask one decision at a time — don't dump all questions at once.
+Ask the user what they want to call their main workflow command. Suggest a default based on the project:
+
+> **What should I call your launcher skill?** This is the command you'll invoke to start a task (e.g., `/implement`, `/build`, `/dev`, `/ship`).
+> Default: `/implement`
+
+Use their choice throughout the generated skills. If they accept the default, use `/implement`.
+
+### Step 6: Skill Integration
+
+If the scan found installed skills that could complement the harness, present them to the user one at a time. Only show skills that map naturally to a phase (don't force it).
+
+For each relevant skill, ask:
+
+> **Use `/<skill-name>` in the harness?**
+> [One sentence on what it does.] I'd integrate it into the **[phase]** phase — [one sentence on how].
+> (yes / no)
+
+Examples of natural mappings:
+- `test-driven-development` → execute phase (write tests before implementation)
+- `systematic-debugging` → execute phase (when stuck on failing tests)
+- `frontend-design` → design phase (for UI work)
+- `brainstorming` → plan phase (for complex tasks)
+- `code-review` → verify phase (self-review before shipping)
+
+Only reference skills the user approves. Skip this step entirely if no relevant skills were found.
+
+### Step 7: Engineering Recommendations
+
+For things Harnessable can't solve (missing CI, no PM tool), list them as recommendations:
+
+> **Suggested next steps** (outside of Harnessable):
+> - Set up CI — without it, the verify phase can only run local checks
+> - Consider environment isolation — needed before multi-agent work
+
+Before starting generation, tell the user:
+
+> I'm going to generate your harness now — this creates several skill files, updates your config, and initializes `.harness/`. You may be prompted to approve file writes. This takes a couple of minutes.
 
 ## Phase 4: Write Harness Context
 
@@ -354,38 +236,16 @@ Create the `.harness/` directory in the project root. This is the harness's own 
 ```
 .harness/
 ├── conversations/        # per-implementation records (phase progress, decisions, evidence)
-├── retros/               # past retro results and friction dashboard snapshots
-└── state.json            # harness-level state: concepts, metrics, configuration
+└── retros/               # past retro results
 ```
 
-**Important distinction:** This `state.json` is the **harness-level** state — it tracks adopted concepts, accumulated metrics, and configuration across all implementations. Per-task state files (tracking lifecycle progress through phases) are created at runtime by the launcher and live in the worktree or working directory.
-
-Write `.harness/state.json`:
-```json
-{
-  "created_at": "<timestamp>",
-  "last_explore": "<timestamp>",
-  "last_retro": null,
-  "concepts_adopted": ["<list of concepts the user chose>"],
-  "concepts_deferred": ["<list of 'not now' concepts>"],
-  "concepts_dismissed": ["<list of 'not relevant' concepts>"],
-  "generated_skills": ["<list of skill names generated>"],
-  "metrics": {
-    "implementation_count": 0,
-    "total_harness_issues": 0,
-    "total_discoveries": 0,
-    "retro_count": 0
-  }
-}
-```
-
-The `metrics` section is accumulated by the generated phase skills (increments `implementation_count`, counts harness issues and discoveries from each conversation file) and by `/harness-retro` (increments `retro_count`, rolls up totals). This gives the retro cross-round data without a separate metrics directory.
+No harness-level state file — `state.json` is only created per-task at runtime by the launcher (it tracks lifecycle phase progression). Harness-level information (adopted concepts, generated skills) is derivable: check which skills exist in the skill directory and read `HARNESS.md`.
 
 Add `.harness/` to the project's `.gitignore` if the user prefers (conversations and retros can also be committed — ask the user).
 
 ## Phase 6: Generate Skills
 
-Generate the **driver + launcher + phase skills architecture** based on the user's codebase and choices. Read [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md) for the full architecture reference — state file schema, templates, and concept-to-phase mapping.
+Generate the **engine + launcher + phase skills architecture** based on the user's codebase and choices. Read [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md) for the full architecture reference — state file schema, templates, and concept-to-phase mapping.
 
 ### 6a. Determine Lifecycle Phases
 
@@ -407,8 +267,6 @@ Based on scan results and user answers, decide which phases this codebase needs:
 
 **Full harness** (team, DB, PM tool, frontend): all 9 phases.
 
-Present the proposed phases to the user: "Based on what I found, your harness will have these phases: [list]. Does this feel right?"
-
 ### 6b. Determine Profiles
 
 Profiles control which phases are skipped. Based on the codebase:
@@ -424,7 +282,7 @@ Profiles control which phases are skipped. Based on the codebase:
 
 ### 6c. Generate Build Launcher
 
-Generate a launcher skill (name it for this repo — e.g., `/implement`, `/build`, `/dev`) that:
+Generate a launcher skill using the name the user chose in Step 5 (default: `/implement`):
 
 1. **Fetches the task** — from the detected PM tool (Linear MCP, GitHub CLI, Jira) or accepts a plain text description if no PM tool
 2. **Determines profile** — from `--profile` flag, default, or task labels
@@ -446,6 +304,8 @@ For each phase in the lifecycle, generate a `harness-build-{phase}/SKILL.md` fol
 **3. Escalation rules** — when to stop and ask the human (ambiguous requirements, architecture decisions, stuck after 2 attempts).
 
 **4. Recording baked in** — at each phase transition, write progress to `.harness/conversations/`. Not as extra ceremony — as a natural part of completing each phase.
+
+**5. Integrate approved skills** — for each installed skill the user approved in Step 6, add an instruction in the relevant phase skill to invoke it. Don't duplicate what the skill already does — just invoke it at the right moment. Only include skills the user explicitly approved.
 
 Here's what each phase skill should contain (adapt to the codebase):
 
@@ -472,19 +332,11 @@ Here's what each phase skill should contain (adapt to the codebase):
 1. Present the full architecture to the user: launcher + N phase skills
 2. Show each skill's key content (don't just list names — show what each does)
 3. After approval, write all skills to the project's skill directory
-4. Update `.harness/state.json` with `generated_skills` list
-
-**If MCP channel is available**, push progress updates during generation:
-```
-mcp__harness__reply({ type: "status", text: "Generating phase skills..." })
-mcp__harness__reply({ type: "update", html: "<div style='color:var(--success)'>✓ harness-build-understand created</div>" })
-// ... for each skill
-mcp__harness__reply({ type: "status", text: "✓ All skills generated" })
-```
+4. Update `HARNESS.md` with the generated skills list
 
 ### Generation Rules
 
-1. **Name the launcher for this repo** — not generically
+1. **Use the name the user chose** for the launcher
 2. **Use actual commands** — no `<placeholder>` syntax in any generated skill
 3. **Present skills** to the user before writing
 4. **Write as SKILL.md** in the project's skill directory (one directory per skill)
@@ -510,24 +362,24 @@ Generate a `HARNESS.md` at the project root. This is the human-readable front do
 ```markdown
 # Harness
 
-Engineering workflow for agent-driven development on this project. Generated by [Harnessable](https://github.com/harnessable/harnessable).
+Engineering workflow for agent-driven development on this project. Generated by [Harnessable](https://github.com/kipwise/harnessable).
 
 ## What is Harness Engineering?
 
 Harness engineering gives AI agents a disciplined, phased workflow for shipping software. Instead of letting agents work ad-hoc (skipping verification, losing context, producing inconsistent quality), every task follows clear phases with explicit instructions and exit gates.
 
-The harness improves over time — after real work, `/harness-retro` reviews what happened and reshapes the workflow based on evidence.
+The harness improves over time — after real work, `/harness-learn` reviews what happened and reshapes the workflow based on evidence.
 
 ## Architecture
 
 ```
 /<launcher-name> ISSUE-123
   → creates state file + branch
-  → invokes universal driver
-    → driver loops through phase skills:
+  → invokes universal engine
+    → engine loops through phase skills:
       [phase 1] → [phase 2] → ... → [phase N]
     → each phase: focused skill (40-140 lines) with checklist + exit gate
-  → driver announces "WORKFLOW COMPLETE"
+  → engine announces "WORKFLOW COMPLETE"
 ```
 
 **Why phase skills:** A single big skill loses agent attention by late phases. Phase skills keep each turn focused — the agent sees one phase at a time, not the whole workflow.
@@ -535,7 +387,7 @@ The harness improves over time — after real work, `/harness-retro` reviews wha
 ## The Loop
 
 ```
-/harness-setup (shape) → real work → /harness-retro (reflect) → /harness-setup ...
+/harness-setup (shape) → real work → /harness-learn (reflect) → /harness-setup ...
 ```
 
 ## Current Workflow
@@ -554,7 +406,7 @@ The harness improves over time — after real work, `/harness-retro` reviews wha
 
 | Skill | Purpose | User-invocable |
 |-------|---------|---------------|
-| `/<launcher>` | Build launcher — creates state, invokes driver | Yes |
+| `/<launcher>` | Build launcher — creates state, invokes engine | Yes |
 | `harness-build-understand` | Explore code, identify scope | No |
 | ... | ... | ... |
 | `harness-engine` | Universal state machine (ships with Harnessable) | No |
@@ -565,17 +417,16 @@ The harness improves over time — after real work, `/harness-retro` reviews wha
 2. **Persist everything** — progress recorded to .harness/conversations/ at each phase transition
 3. **Adapt to the repo** — skills use this project's actual commands
 4. **Fail fast, surface early** — hit a blocker? Flag it, don't spiral
-5. **Self-improve** — /harness-retro reviews rounds and reshapes the workflow
+5. **Self-improve** — /harness-learn reviews rounds and reshapes the workflow
 
 ## Harness Data
 
 - `.harness/conversations/` — per-implementation records (phase progress, decisions, evidence)
 - `.harness/retros/` — past retrospective results
-- `.harness/state.json` — harness-level config (concepts, metrics). Per-task state files are created at runtime by the launcher.
 
 ## Reshaping
 
-Run `/harness-retro` after a few rounds of work to review friction and reshape the workflow.
+Run `/harness-learn` after a few rounds of work to review friction and reshape the workflow.
 Run `/harness-setup` to re-examine the codebase and explore new concepts.
 ```
 
@@ -583,11 +434,7 @@ Adapt the template to fit what was actually generated. `HARNESS.md` is committed
 
 ## Phase 8: Orient
 
-After writing context, initializing `.harness/`, and generating skills:
-
-**Visual companion:** Write a final `04-complete.html` to `.harness/screens/` showing everything that was created — the architecture diagram, the list of generated skills, how to use the launcher, and the harness loop. The server shows it after the user finishes with screen 3. If MCP is available, also push via `mcp__harness__reply({ type: "screen", html: "..." })`.
-
-**In the terminal**, output:
+After writing context, initializing `.harness/`, and generating skills, output:
 
 > You're set up. Here's what was created:
 >
@@ -600,20 +447,20 @@ After writing context, initializing `.harness/`, and generating skills:
 > - `.harness/` directory for recording progress and state
 > - `HARNESS.md` documenting the workflow for your team
 >
-> **How to use it:** Run `/<launcher-name> ISSUE-123` (or a plain text description). The launcher creates a state file, the driver loops through your phase skills — each one does focused work with clear exit gates. Progress is recorded automatically.
+> **How to use it:** Run `/<launcher-name> ISSUE-123` (or a plain text description). The launcher creates a state file, the engine loops through your phase skills — each one does focused work with clear exit gates. Progress is recorded automatically.
 >
-> **How it improves:** After a few rounds of real work, run `/harness-retro`. It reads the recorded conversations, maps friction to specific phase skills, and suggests targeted improvements.
+> **How it improves:** After a few rounds of real work, run `/harness-learn`. It reads the recorded conversations, maps friction to specific phase skills, and suggests targeted improvements.
 >
-> The harness loop: `/harness-setup` (shape) → real work → `/harness-retro` (reflect) → reshape
+> The harness loop: `/harness-setup` (shape) → real work → `/harness-learn` (reflect) → reshape
 
 ---
 
-## Re-Exploring
+## Re-running
 
 `/harness-setup` can be run again anytime:
-- After `/harness-retro` surfaces new concepts to explore
+- After `/harness-learn` surfaces new concepts to explore
 - After the codebase changes significantly (new tools, new deploy target)
 - When the team grows or workflow changes
 - When you want to rethink the harness shape
 
-On re-runs, read `.harness/state.json` and existing skills. Show what's changed since last exploration. Regenerate or update skills as needed. Update `state.json` with new concept decisions.
+On re-runs, read `HARNESS.md` and existing skills. Show what's changed since last exploration. Regenerate or update skills as needed.
