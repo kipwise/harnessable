@@ -54,7 +54,7 @@ The scan agent should explore:
 
 **Repository Structure:** README and docs. Existing workflow docs (CONTRIBUTING.md, ADRs). Code organization (src layout, test location conventions).
 
-**Installed Skills:** Scan `.claude/skills/`, `.cursor/skills/`, `.agents/`, and any plugin/skill directories for existing skills that are NOT part of Harnessable (ignore `harness-*` skills). Read each `SKILL.md` frontmatter (name, description) to understand what's available. Only report skills that actually exist on disk — do NOT assume or suggest skills that weren't found.
+**Installed Skills:** Use `ls` or Glob to explicitly list directories inside `.claude/skills/`, `.cursor/skills/`, and `.agents/` in the project root. For each directory found that is NOT a `harness-*` skill, read its `SKILL.md` frontmatter (name, description). Only report skills that have an actual `SKILL.md` file on disk. Do NOT use your loaded skill context or system-level skills — only what exists in the project's skill directories. If no non-harness skills are found, report "none found".
 
 The agent should return a structured summary of everything found — including the list of installed skills with their names and descriptions — and what remains unclear.
 
@@ -167,7 +167,7 @@ Use their choice throughout the generated skills. If they accept the default, us
 
 ### Step 6: Skill Integration
 
-If the scan found non-Harnessable skills installed in the project, present each relevant one to the user. Only show skills that were actually found on disk — never suggest skills that don't exist. Only show skills that map naturally to a phase (don't force it).
+If the scan found non-Harnessable skills in the project's skill directories (`.claude/skills/`, `.cursor/skills/`, `.agents/`), present each relevant one to the user. ONLY use skills from the scan results — do NOT offer system-level skills, plugin skills, or skills from your own loaded context. Skip this step entirely if the scan reported "none found".
 
 For each relevant skill found, ask:
 
