@@ -51,7 +51,7 @@ The scan agent should explore:
 
 **Repository Structure:** README and docs. Existing workflow docs (CONTRIBUTING.md, ADRs). Code organization (src layout, test location conventions).
 
-**Installed Skills:** Scan `.claude/skills/`, `.cursor/skills/`, `.agents/`, and any plugin/skill directories for existing skills. Read each `SKILL.md` frontmatter (name, description) to understand what's available. Common examples: `frontend-design`, `test-driven-development`, `systematic-debugging`, `code-review`, `brainstorming`. These are capabilities the generated phase skills can invoke rather than duplicating.
+**Installed Skills:** Scan `.claude/skills/`, `.cursor/skills/`, `.agents/`, and any plugin/skill directories for existing skills that are NOT part of Harnessable (ignore `harness-*` skills). Read each `SKILL.md` frontmatter (name, description) to understand what's available. Only report skills that actually exist on disk — do NOT assume or suggest skills that weren't found.
 
 The agent should return a structured summary of everything found — including the list of installed skills with their names and descriptions — and what remains unclear.
 
@@ -164,22 +164,15 @@ Use their choice throughout the generated skills. If they accept the default, us
 
 ### Step 6: Skill Integration
 
-If the scan found installed skills that could complement the harness, present them to the user one at a time. Only show skills that map naturally to a phase (don't force it).
+If the scan found non-Harnessable skills installed in the project, present each relevant one to the user. Only show skills that were actually found on disk — never suggest skills that don't exist. Only show skills that map naturally to a phase (don't force it).
 
-For each relevant skill, ask:
+For each relevant skill found, ask:
 
 > **Use `/<skill-name>` in the harness?**
-> [One sentence on what it does.] I'd integrate it into the **[phase]** phase — [one sentence on how].
+> [One sentence on what it does — from its SKILL.md description.] I'd integrate it into the **[phase]** phase — [one sentence on how].
 > (yes / no)
 
-Examples of natural mappings:
-- `test-driven-development` → execute phase (write tests before implementation)
-- `systematic-debugging` → execute phase (when stuck on failing tests)
-- `frontend-design` → design phase (for UI work)
-- `brainstorming` → plan phase (for complex tasks)
-- `code-review` → verify phase (self-review before shipping)
-
-Only reference skills the user approves. Skip this step entirely if no relevant skills were found.
+Only reference skills the user approves. Skip this step entirely if no relevant skills were found by the scan.
 
 ### Step 7: Engineering Recommendations
 
