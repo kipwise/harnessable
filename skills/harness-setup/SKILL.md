@@ -237,7 +237,7 @@ Create the `.harness/` directory in the project root. This is the harness's own 
 
 No harness-level state file — `state.json` is only created per-task at runtime by the launcher (it tracks lifecycle phase progression). Harness-level information (adopted concepts, generated skills) is derivable: check which skills exist in the skill directory and read `HARNESS.md`.
 
-Add `.harness/` to the project's `.gitignore` if the user prefers (conversations and retros can also be committed — ask the user).
+Conversations and retros should be committed to the repo — `/harness-learn` reads them to identify cross-round patterns and improve the workflow over time. Do NOT add `.harness/` to `.gitignore`.
 
 ## Phase 6: Generate Skills
 
