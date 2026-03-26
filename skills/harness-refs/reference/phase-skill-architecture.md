@@ -1,6 +1,6 @@
 # Phase Skill Architecture
 
-The driver + launcher + phase skills pattern decomposes a monolithic implementation workflow into focused, manageable pieces. This is the reference for generating and working with phase skills.
+The driver + launcher + phase skills pattern decomposes a monolithic implementation workflow into focused, manageable pieces. Phases are discovered through the deep dive conversation with the human — they are not selected from a preset menu. This is the reference for generating and working with phase skills.
 
 ## Why Phase Skills Beat Monolithic Skills
 
@@ -17,11 +17,11 @@ The agent sees 40-140 lines per phase turn, not 300+ lines for the whole workflo
 ## The Flow
 
 ```
-User invokes launcher (/implement ISSUE-123)
+User invokes launcher (/<launcher-name> ISSUE-123)
   → Launcher fetches issue, creates worktree, writes state file
   → Launcher invokes /harness-engine with state file path
     → Driver reads state, finds first pending phase
-    → Driver invokes phase skill (e.g., /harness-build-understand)
+    → Driver invokes phase skill (e.g., /harness-<phase-name>)
       → Phase skill does focused work, updates state file
     → Driver validates checklist, records completion
     → Driver loops to next phase
@@ -33,27 +33,27 @@ User invokes launcher (/implement ISSUE-123)
 
 The state file is the single source of truth. It lives at `.harness/state.json` in the worktree (or project root if no worktree).
 
-### Build State File
+### Solo State File
+
+Used when one agent works one task. Replaces the old `type: "build"` schema.
 
 ```json
 {
   "version": 1,
-  "type": "build",
+  "type": "solo",
   "issue": "<id or null>",
   "issue_title": "<title or task description>",
   "profile": "<profile name>",
-  "mode": "solo",
   "target_branch": "main",
-  "state_file_path": "<absolute path to this file>",
-  "created_at": "<ISO-8601 timestamp>",
-  "updated_at": "<ISO-8601 timestamp>",
+  "state_file_path": "<absolute path>",
+  "created_at": "<ISO timestamp>",
+  "updated_at": "<ISO timestamp>",
 
   "environment": {
     "worktree_path": null,
     "branch": null,
     "dev_server_port": null,
     "dev_server_pid": null,
-    "db_name": null,
     "env_file_path": null,
     "conversation_file": null,
     "health_check": null
@@ -61,56 +61,73 @@ The state file is the single source of truth. It lives at `.harness/state.json` 
 
   "lifecycle": [
     {
-      "phase": "understand",
-      "skill": "harness-build-understand",
+      "phase": "<name from deep dive>",
+      "skill": "harness-<phase-name>",
       "status": "pending",
       "started_at": null,
       "completed_at": null,
       "outputs": {},
-      "checklist": {
-        "code_explored": null,
-        "scope_clear": null
-      }
+      "checklist": {}
     }
   ]
 }
 ```
 
-### Orchestrate State File
+### Coordinated State File
+
+Used when multiple agents work multiple tasks. Replaces the old `type: "orchestrate"` schema. The `coordination` field specifies the pattern.
 
 ```json
 {
   "version": 1,
-  "type": "orchestrate",
-  "milestone": "<milestone identifier>",
-  "team_name": "orchestrate-<milestone>",
+  "type": "coordinated",
+  "coordination": "orchestrator",
+  "milestone": "<milestone or batch description>",
+  "team_name": "<agent team name>",
+  "target_branch": "main",
+  "integration_branch": "<branch for combining work>",
   "state_file_path": "<absolute path>",
-  "created_at": "<ISO-8601 timestamp>",
-  "updated_at": "<ISO-8601 timestamp>",
+  "created_at": "<ISO timestamp>",
+  "updated_at": "<ISO timestamp>",
 
-  "environment": {
-    "worktree_path": null,
-    "integration_branch": null,
-    "integration_pr": null,
-    "dev_server_port": null,
-    "dev_server_pid": null,
-    "db_name": null,
-    "health_check": null
+  "tickets": {
+    "<issue-id>": {
+      "group": 1,
+      "ticket_state": "queued | dispatched | pr_ready | merged",
+      "agent_id": null,
+      "pr_number": null,
+      "blocked_by": [],
+      "last_heartbeat": null
+    }
   },
 
   "lifecycle": [
-    { "phase": "analyze",  "skill": "harness-orchestrate-analyze",  "status": "pending" },
-    { "phase": "dispatch", "skill": "harness-orchestrate-dispatch", "status": "pending" },
-    { "phase": "collect",  "skill": "harness-orchestrate-collect",  "status": "pending" },
-    { "phase": "setup",    "skill": "harness-orchestrate-setup",    "status": "pending" },
-    { "phase": "quality",  "skill": "harness-orchestrate-quality",  "status": "pending" },
-    { "phase": "merge",    "skill": "harness-orchestrate-merge",    "status": "pending" },
-    { "phase": "conclude", "skill": "harness-orchestrate-conclude", "status": "pending" }
-  ],
-
-  "tickets": {}
+    {
+      "phase": "<name from deep dive>",
+      "skill": "harness-<phase-name>",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "outputs": {},
+      "checklist": {}
+    }
+  ]
 }
 ```
+
+The `coordination` field values:
+- `"orchestrator"` — one agent dispatches and manages multiple teammate agents
+- `"pipeline"` — agents hand off sequentially (agent A output feeds agent B)
+- `"peer"` — agents work independently, results merged at the end
+
+### What Changed from the Old Schema
+
+1. `type: "build"` becomes `type: "solo"`. `type: "orchestrate"` becomes `type: "coordinated"`.
+2. Added `coordination` field for coordinated workflows.
+3. Phase names in `lifecycle[]` are no longer constrained to a preset list — they come from the deep dive.
+4. Removed `db_name` from environment block (not all projects have databases — domain-specific, captured by the deep dive as custom environment fields).
+5. The engine treats a missing `coordination` field as solo — no special handling needed.
+6. Everything else unchanged: version, status values (`pending | in_progress | done | skipped | waiting | blocked`), checklist semantics (`null | true | false | "skipped"`), timestamps, outputs.
 
 ### State File Rules
 
@@ -147,7 +164,7 @@ Every generated phase skill follows this structure:
 
 ```markdown
 ---
-name: harness-build-<phase>
+name: harness-<phase-name>
 description: <One-line description of what this phase does>
 user-invocable: false
 ---
@@ -190,12 +207,12 @@ This is documentation — the checklist is the machine-readable version.]
 
 ## Launcher Template
 
-The build launcher is a user-invocable skill that creates the state file and invokes the driver:
+The launcher is a user-invocable skill that creates the state file and invokes the driver. Profiles and lifecycle phases come from the deep dive, stored in `.harness/lifecycle.md`.
 
 ```markdown
 ---
 name: <project-specific name, e.g., "implement">
-description: "Build agent — creates state file, invokes harness driver for the full task lifecycle."
+description: "Launch agent — creates state file, invokes harness driver for the full task lifecycle."
 user-invocable: true
 ---
 
@@ -211,14 +228,14 @@ user-invocable: true
 [PM tool integration OR accept plain text description]
 
 ### 2. Determine profile
-[Profile selection logic — default, flag override, label-based]
+Read profiles from `.harness/lifecycle.md`. Apply default unless overridden by flag or label.
 
 ### 3. Create branch (or worktree)
 [Branching strategy for this codebase]
 
 ### 4. Write state file
-Write `.harness/state.json` with lifecycle array based on profile.
-[Profile-to-phase matrix for this codebase]
+Write `.harness/state.json` with lifecycle array based on the selected profile.
+Phases and profiles are defined in `.harness/lifecycle.md` — read them from there, do not hardcode.
 
 ### 5. Invoke driver
 Invoke `/harness-engine`: "State file: `<path>/.harness/state.json`"
@@ -229,79 +246,75 @@ If state file exists for this issue:
 2. Invoke `/harness-engine` — it resumes from current phase.
 ```
 
-## Lifecycle Phases
+## Skill Naming Convention
 
-These are the possible phases. Not every codebase needs all of them — `/harness-setup` determines which to include based on the scan.
+All phase skills use `harness-<phase-name>`, dropping the old `-build-` and `-orchestrate-` infixes.
 
-| Phase | Purpose | Include when |
-|-------|---------|-------------|
-| **pickup** | Fetch issue, validate AC, mark in-progress | PM tool exists |
-| **understand** | Read docs, explore code, identify scope | Always |
-| **design** | Prototype, brainstorm architecture | Frontend-heavy or complex UI |
-| **environment** | Worktree, DB, dev server, health check | DB, dev server, or multi-agent |
-| **plan** | Break into tasks, get approval | Non-trivial projects |
-| **execute** | Implement changes, add tests | Always |
-| **verify** | Run full verification, prove AC, quality review | Always |
-| **ship** | Push, create PR, monitor CI, update PM | Always |
-| **cleanup** | Stop server, drop DB, remove worktree | When environment phase exists |
+| Skill type | Naming | Examples |
+|-----------|--------|---------|
+| Phase skills | `harness-<phase-name>` | `harness-evaluate`, `harness-train`, `harness-ship` |
+| Framework skills | `harness-<function>` | `harness-engine`, `harness-setup`, `harness-retro`, `harness-learn` |
 
-**Minimal harness** (solo dev, simple project): `understand → execute → verify → ship`
-**Full harness** (team, DB, PM tool): all 9 phases
+The state file `type` field distinguishes workflow types — the skill name alone does not imply solo vs coordinated.
+
+### Backward Compatibility
+
+Existing harnesses in the wild have `harness-build-*` and `harness-orchestrate-*` named skills. These keep working because the engine reads skill names from the state file's `lifecycle[].skill` field — it does not assume any naming convention. On the next `/harness-setup` run, new skills are generated with the new naming convention and old skills are replaced.
+
+## Example Lifecycles
+
+These are illustrations, not prescriptions. Every team's lifecycle is discovered through the deep dive conversation. The phases below show what real lifecycles look like across different domains.
+
+### Web App
+
+**Phases:** pickup → understand → plan → execute → verify → ship
+
+| Profile | Phases | When to use |
+|---------|--------|-------------|
+| `feature` | pickup → understand → plan → execute → verify → ship | Standard feature work |
+| `bugfix` | pickup → execute → verify → ship | Bug with clear reproduction steps |
+| `quick` | execute → verify → ship | One-file changes, docs, config |
+
+### AI App
+
+**Phases:** design-prompt → build-eval → iterate → shadow-deploy → promote
+
+| Profile | Phases | When to use |
+|---------|--------|-------------|
+| `full` | design-prompt → build-eval → iterate → shadow-deploy → promote | New capability or major prompt change |
+| `prompt-only` | iterate → shadow-deploy → promote | Tweaking existing prompts |
+| `guardrail` | add-rule → test-adversarial → deploy | Adding safety rules |
+
+### Data Science
+
+**Phases:** hypothesis → explore-data → engineer-features → train → evaluate → deploy
+
+| Profile | Phases | When to use |
+|---------|--------|-------------|
+| `experiment` | hypothesis → explore-data → engineer-features → train → evaluate → deploy | New model or feature set |
+| `retrain` | train → evaluate → deploy | Scheduled retraining |
+| `hotfix` | fix-pipeline → verify → deploy | Pipeline failure |
+
+### DevOps
+
+**Phases:** plan → apply-staging → verify → apply-prod → monitor
+
+| Profile | Phases | When to use |
+|---------|--------|-------------|
+| `change` | plan → apply-staging → verify → apply-prod → monitor | Standard infrastructure change |
+| `hotfix` | apply-staging → verify → apply-prod → monitor | Urgent production fix |
+
+### Embedded
+
+**Phases:** understand-spec → implement → cross-compile → bench-test → release
+
+| Profile | Phases | When to use |
+|---------|--------|-------------|
+| `feature` | understand-spec → implement → cross-compile → bench-test → release | New firmware feature |
+| `patch` | implement → cross-compile → bench-test → release | Small fix with clear spec |
 
 ## Profiles
 
 Profiles control which phases are included. Skipped phases get `{ "status": "skipped", "reason": "profile:<name>" }` in the lifecycle.
 
-| Profile | When to use | What's lighter |
-|---------|-------------|---------------|
-| **full** | Complex features, solo default | Nothing skipped |
-| **feature** | Standard feature, clear requirements | Skip design (unless flagged) |
-| **bugfix** | Bug with reproduction steps | Skip design + plan |
-| **quick** | One-file, docs, config changes | execute → verify → ship only |
-| **foundation** | Backend/infra, no UI | Skip design |
-| **design** | Design-heavy, new pages/layouts | Nothing skipped, design phase emphasized |
-
-## Concept-to-Phase Mapping
-
-When concepts are adopted (via `/harness-setup` or `/harness-learn`), they augment specific phase skills:
-
-| Concept | Phases affected | What changes |
-|---------|----------------|-------------|
-| **Verification Discipline** | verify | Classify AC by strategy (API/UI/infra), capture evidence, never curl for UI |
-| **Session Resilience** | ALL (baked in) | Record progress at phase transitions to `.harness/conversations/` |
-| **Environment Isolation** | NEW: environment, cleanup | Generate these phases — worktree + DB + port isolation + teardown |
-| **Quality Gates** | verify | Add parallel review agents step after verification passes |
-| **Process Profiles** | launcher | Update profile matrix with project-appropriate profiles |
-| **Multi-Agent Coordination** | NEW: orchestrate workflow | Generate orchestrate launcher + 7 orchestrate phase skills |
-| **Integration Quality** | orchestrate-quality | Add integrated quality checks on combined branch |
-| **PM Integration** | pickup, ship | Add PM tool MCP calls for status updates |
-| **AC Discipline** | pickup | Add AC validation — stop if vague or untestable |
-| **Architecture Lock-In** | design | Add design doc requirement + human lock step |
-| **Vertical Feature Slices** | N/A (coaching) | Issue creation guidance, not a phase skill concern |
-| **Self-Improvement Loop** | N/A (baked in) | Handled by `/harness-learn`, not phase skills |
-
-## Orchestrate Phases
-
-When "Multi-Agent Coordination" is adopted, these orchestrate phases are generated:
-
-| Phase | Purpose |
-|-------|---------|
-| **analyze** | Fetch tickets, build dependency graph, assign profiles/risk, present strategy, wait for approval |
-| **dispatch** | Create team, spawn teammates for unblocked tickets |
-| **collect** | Loop: receive heartbeats, handle design reviews, process PRs, merge by risk, unblock dependents |
-| **setup** | Install deps, create DB, start dev server on integration branch |
-| **quality** | Run quality review + E2E on integrated code |
-| **merge** | Present integration PR to human, merge to main on approval |
-| **conclude** | Clean all resources, aggregate metrics, run retrospective |
-
-## Risk-Based Merge Strategy (Orchestration)
-
-When orchestrating multiple agents, PRs are routed by risk level:
-
-| Risk | Verification | Merge |
-|------|-------------|-------|
-| **Low** (bugfix, foundation) | Tests only (+ UI screenshots if frontend touched) | Auto-merge after DoD check |
-| **Medium** (feature) | Tests + UI screenshots if frontend touched | Human reviews PR before merge |
-| **High** (design, novel) | Tests + UI screenshots + design evidence | Human reviews PR + design |
-
-**Critical rule:** Verification is based on **what changed**, not just risk level. Any PR touching frontend files requires UI verification regardless of risk.
+Profile names and shapes come from the deep dive — they emerge from the human describing their typical vs unusual work. The examples above show common patterns, but every team defines their own.

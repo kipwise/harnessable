@@ -1,15 +1,28 @@
 ---
 name: harness-refs
-description: Core principles for disciplined agent engineering, plus a concept library that maps workflow friction to solutions. Hub skill referenced by all Harnessable action skills.
+description: First principles and core discipline for agent engineering, plus a concept library that maps workflow friction to solutions. Hub skill referenced by all Harnessable action skills.
 ---
 
-This skill defines the engineering discipline that makes AI agents reliable. It's the hub — every Harnessable action skill reads this for principles. It's also a concept library — when you hit friction in your workflow, the concepts here help you name the problem and shape a response.
+This skill defines the first principles and engineering discipline that make AI agents reliable. It's the hub — every Harnessable action skill reads this for principles. It's also a concept library — when you hit friction in your workflow, the concepts here help you name the problem and shape a response.
 
 ## Prerequisite: Harness Context
 
 Before applying any pattern below, read the `## Harness Context` section in the project's AI config file (CLAUDE.md, .cursorrules, GEMINI.md, etc.). If it doesn't exist, run `/harness-setup` first.
 
 All commands, tools, and workflows referenced below should be adapted to the harness context. Never hardcode assumptions about tech stack, PM tool, or deploy target.
+
+---
+
+## First Principles
+
+Every software development workflow, regardless of domain, is governed by six principles. These are the listening framework for the deep dive — the agent uses them to parse the human's narrative and identify gaps.
+
+1. **Trigger** — something causes work to begin
+2. **Artifact** — each step produces something that didn't exist before
+3. **Verification** — artifacts must be proven correct through the running system
+4. **Destination** — artifacts must reach where they have effect
+5. **Ownership** — each step has an owner (human, agent, or automated)
+6. **Constraints** — each step has rules (explicit or implicit)
 
 ---
 
@@ -20,11 +33,11 @@ These are constant regardless of which concepts you've adopted or how your workf
 ### 1. Verify by Proof, Not Assumption
 
 **DO**: Run the system, capture output, cite evidence for every claim
-**DO**: Prove each acceptance criterion through the running system — curl, browser automation, DB queries
-**DO**: Classify criteria by verification strategy (API, UI, infrastructure) before starting
+**DO**: Prove each acceptance criterion — execute against the running system, capture output
+**DO**: Classify criteria by the verification strategy appropriate to the artifact type before starting
 
 **DON'T**: Read code and claim it works without executing it
-**DON'T**: Use `curl` to verify UI behavior — SSR HTML doesn't reflect client-side state
+**DON'T**: Use a verification strategy that doesn't match the artifact type
 **DON'T**: Mark acceptance criteria as complete without captured evidence
 
 ### 2. Persist Everything
@@ -77,7 +90,7 @@ Review your work against these anti-patterns — they are the fingerprints of un
 | **Infinite retry** | Same command retried 5 times | Diagnose root cause after attempt 2 |
 | **Context amnesia** | Session drops, all progress lost | Write progress at natural milestones |
 | **Scope creep silence** | Task grew 3x but no one was told | Flag scope expansion immediately |
-| **Mock everything** | Tests pass, production breaks | Hit real systems at verification boundaries |
+| **Mock everything** | Tests pass, production breaks | Verify against real systems where possible |
 | **Solo hero** | Sequential work that could be parallelized | Split independent tasks across parallel agents or sessions |
 | **Zombie process** | Dev servers, DBs left running after work | Clean up every environment you create |
 | **Blind merge** | PR merged without checking CI status | Wait for CI, verify checks pass |
@@ -89,107 +102,133 @@ Review your work against these anti-patterns — they are the fingerprints of un
 
 These concepts address specific friction patterns that emerge as you use the harness. You don't need all of them. You don't need them in any order. When you hit a pattern of friction, find the concept that names it and decide whether to adopt it.
 
-> *See [concepts reference](reference/concepts.md) for the full friction → concept mapping with detailed signals.*
-
 ### Verification Discipline
-→ [quality-assurance.md](reference/quality-assurance.md)
 
-**Concept:** Every claim about working software must be backed by captured output from the running system. Classify acceptance criteria by verification strategy (API, UI, infrastructure) before implementation, then prove each one.
+Every claim about working software must be backed by evidence from the running system.
 
 **You'll want this when:** An agent says "the code looks correct" without running it. Or acceptance criteria are marked done without evidence. Or a feature "works" locally but breaks in review because nobody actually tested the specific AC.
 
 ### Session Resilience (baked in)
-→ [session-resilience.md](reference/session-resilience.md)
 
-**Concept:** Externalize progress, decisions, and discoveries to files that survive session drops. The conversation file is the single source of truth — not agent memory.
+Progress, decisions, and discoveries must live in files, not agent memory.
 
-**This is baked into every generated implementation skill** — agents record progress to `.harness/conversations/` at natural phase transitions. This data also powers `/harness-learn`. It's not a separate concept to adopt.
+**Baked into every generated phase skill** — agents record progress to `.harness/conversations/` at phase transitions. This data also powers `/harness-retro`. Not a separate concept to adopt.
 
 ### Environment Isolation
-→ [environment-management.md](reference/environment-management.md)
 
-**Concept:** Each piece of work gets its own isolated environment — code (worktrees), data (separate DBs), and network (dedicated ports). Cleanup is deterministic.
+Each piece of work gets its own code, data, and runtime isolation. Cleanup is deterministic.
 
-**You'll want this when:** Agents conflict on the same database or port. Or you can't context-switch between features. Or cleanup is manual and zombie processes accumulate.
+**You'll want this when:** Agents conflict on the same resources. Or you can't context-switch between features. Or cleanup is manual and zombie processes accumulate.
 
 ### Quality Gates
-→ [quality-assurance.md](reference/quality-assurance.md)
 
-**Concept:** Before shipping, run parallel review agents checking different dimensions (reuse, quality, efficiency, bugs, API correctness). Confidence-score findings to filter false positives.
+Before shipping, run parallel review agents checking different quality dimensions. Confidence-score findings to filter false positives.
 
-**You'll want this when:** Quality issues are caught during human review that agents should have caught themselves. Or review rounds are dominated by mechanical issues rather than design discussions.
-
-### Multi-Agent Coordination
-→ [agent-coordination.md](reference/agent-coordination.md)
-
-**Concept:** One orchestrator dispatches teammates, tracks dependencies, manages state, and runs quality checks on integrated code. Wave-based dispatch maximizes parallelism.
-
-**You'll want this when:** You're working tickets sequentially that could be parallel. Or parallel agents are stepping on each other. Or there's no coordination point between individual feature PRs and main.
+**You'll want this when:** Quality issues caught during human review that agents should have caught. Or review rounds dominated by mechanical fixes rather than design discussions.
 
 ### Process Profiles
-→ [workflow-patterns.md](reference/workflow-patterns.md)
 
-**Concept:** Not all work needs the same ceremony. Match process depth to task complexity — a bugfix is different from a new feature is different from infrastructure work.
+Match ceremony to task complexity. Not all work needs the same depth.
 
 **You'll want this when:** Simple tasks feel over-processed. Or complex tasks are under-verified because the process doesn't distinguish them.
 
+### Multi-Agent Coordination
+
+One coordinator dispatches, manages dependencies, tracks state, and coordinates delivery.
+
+**You'll want this when:** Tickets worked sequentially that could be parallel. Or parallel agents stepping on each other. Or there's no coordination point between individual deliverables and the integrated result.
+
 ### Integration Quality
-→ [quality-assurance.md](reference/quality-assurance.md)
 
-**Concept:** Quality checks on individual PRs miss cross-PR inconsistencies. Run quality gates on the integrated branch (after all features merge) to catch naming drift, pattern violations, and interaction bugs.
+Quality checks on the combined result, not just individual pieces.
 
-**You'll want this when:** Individual PRs pass review but the combined codebase has inconsistencies. Or features work in isolation but conflict when integrated.
+**You'll want this when:** Individual deliverables pass review but the combined result has inconsistencies. Or features work in isolation but conflict when integrated.
 
-### Project Management Integration
-→ [project-management.md](reference/project-management.md)
+### PM Integration
 
-**Concept:** Work with your PM tool (Linear, Jira, GitHub Issues) as part of the loop — pickup marks "In Progress", PR creation marks "In Review", agent comments are attributed.
+Work with your PM tool as part of the workflow, not as extra ceremony.
 
-**You'll want this when:** Issue status gets out of sync with actual work. Or stakeholders can't tell what's happening without asking.
+**You'll want this when:** Issue status out of sync with actual work. Or stakeholders can't see progress without asking.
 
-### Self-Improvement Loop
-→ [self-improvement.md](reference/self-improvement.md)
+### Self-Improvement Loop (baked in)
 
-**Concept:** Distinguish harness issues (problems with skill instructions) from product bugs. After implementation rounds, retrospect: what broke, why, and what skill edit would prevent it next time.
+After each round, retrospect, distinguish harness issues from product bugs, apply fixes.
 
-**You'll want this when:** The same friction happens twice. Or you know something should be different but haven't formalized the change.
+**Handled by `/harness-retro`** — not a separate concept to adopt.
+
+### AC Discipline
+
+Every acceptance criterion must be specific enough to verify through the running system.
+
+**You'll want this when:** Agents interpret vague criteria differently. Or "it works" passes as an acceptance criterion.
+
+### Architecture Lock-In
+
+Lock hard-to-reverse decisions before creating implementation tasks.
+
+**You'll want this when:** Agents discover missing schema mid-implementation. Or architecture changes after work starts, invalidating completed tasks.
+
+### Vertical Feature Slices
+
+Default to one task per user-visible capability, all layers end-to-end.
+
+**You'll want this when:** Tasks split by layer create artificial sequential dependencies. Or integration issues surface only after all layers are "done."
 
 ---
 
 ## How Concepts Become Skills
 
-> *See [phase-skill-architecture.md](reference/phase-skill-architecture.md) for the full architecture reference — state file schema, phase skill template, launcher template, and concept-to-phase mapping.*
-
 Concepts are coaching material — patterns and principles. They don't ship as pre-built skills because every codebase needs different implementations.
 
-When a concept is adopted (via `/harness-setup` or `/harness-learn`), it **augments specific phase skills** — adding steps, checklists, or entirely new phases to the lifecycle. The concept-to-phase mapping determines what changes:
+When a concept is adopted, `/harness-setup` or `/harness-retro` integrates it into the appropriate phase skills for your workflow. The specific phases affected depend on your lifecycle — discovered during the deep dive.
 
-| Concept | Phases affected | What changes |
-|---------|----------------|-------------|
-| Verification Discipline | verify | Classify AC by strategy, capture evidence |
-| Session Resilience | ALL (baked in) | Record progress at phase transitions |
-| Environment Isolation | NEW: environment, cleanup | Generate worktree + DB + port isolation phases |
-| Quality Gates | verify | Add parallel review agents step |
-| Process Profiles | launcher | Update profile-to-phase matrix |
-| Multi-Agent Coordination | NEW: orchestrate workflow | Generate orchestrate launcher + phase skills |
-| Integration Quality | orchestrate-quality | Add integrated quality checks |
-| PM Integration | pickup, ship | Add PM tool calls for status updates |
-| AC Discipline | pickup | Add AC validation — stop if vague |
-| Architecture Lock-In | design | Add design doc + human lock step |
-| Vertical Feature Slices | N/A (coaching) | Issue creation guidance |
-| Self-Improvement Loop | N/A (baked in) | Handled by `/harness-learn` |
+> *See [phase-skill-architecture.md](reference/phase-skill-architecture.md) for the full architecture reference — state file schema, phase skill template, and launcher template.*
 
-This means every harness is unique. After `/harness-setup`:
-- A solo Go developer might have: a launcher + 4 phase skills (understand → execute → verify → ship) and nothing else
-- A team on a Rails monorepo might have: a launcher + 9 phase skills with Linear pickup, PostgreSQL environment isolation, and an orchestrate workflow for parallel agents
-- A frontend team might have: 7 phase skills with a design phase, Playwright verification, and quality gates in the verify phase
+## Example Harnesses
 
-The generated skills use the **driver + launcher + phase skills architecture**: a static universal driver dispatches to focused, generated phase skills through a state file. Each phase skill is 40-140 lines — small enough for agents to follow reliably.
+These illustrate what generated harnesses look like across domains — not templates to copy, but illustrations of the output. Your harness will have different phases based on how YOU work.
+
+### Backend API
+
+```
+/implement "Add notification preferences"
+  → plan → build → verify → api-test → pr
+```
+
+5 agent-owned phases. Build runs the full quality suite (tests + lint + type-check + security scan). API test phase curls endpoints against a local dev server and captures responses as evidence. Human gates for staging and production deploy.
+
+### Frontend / Marketing Site
+
+```
+/implement "add dark mode to settings page"
+  → code → build → e2e-test → push → deploy-check → cleanup
+```
+
+6 agent-owned phases. Build is a hard gate (`npm run build` must pass). E2E phase uses browser automation with screenshot evidence. Push to main requires human approval because it auto-deploys to production.
+
+### Full-Stack Monorepo
+
+```
+/implement PROJ-135
+  → pickup → understand → plan → implement → verify → ship → cloud-verify
+
+/orchestrate M7
+  → collect → analyze → dispatch → quality → cloud-verify → review
+```
+
+8 solo phases + 6 orchestration phases. Pickup fetches from a PM tool via MCP. Orchestration dispatches parallel agents per wave, grouped by dependency graph. Cloud-verify tests the preview deploy via browser automation.
+
+### What to Notice
+
+- **Phase names match how each team talks** — "build" vs "code" vs "implement", "pr" vs "ship"
+- **Phase count varies** — 5 to 8, based on workflow complexity
+- **Every harness evolves** — the first generation is usable, retros after real work make it sharper
+- **The architecture is constant** — launcher → engine → phase skills, regardless of domain
 
 ## Implementation Notes
 
 The right amount of process is the minimum needed to ship reliably. If you're spending more time on ceremony than code, simplify. If quality issues slip through, adopt the concept that addresses them.
 
-Run `/harness-setup` to shape your harness. Use the generated skills on real work. Run `/harness-learn` to reflect and reshape. The workflow gets better every round because the skills get more specific to your actual needs.
+Run `/harness-setup` to shape your harness. Use the generated skills on real work. Run `/harness-retro` to reflect and reshape. The workflow gets better every round because the skills get more specific to your actual needs.
 
-The harness loop: `/harness-setup` (shape) → real work → `/harness-learn` (reflect) → `/harness-setup` ...
+The harness loop: `/harness-setup` (shape) → real work → `/harness-retro` (reflect) → `/harness-setup` ...

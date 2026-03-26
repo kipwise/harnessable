@@ -18,7 +18,7 @@ topic: ISSUE-XX: Brief description
 status: active | concluded
 type: implementation
 issue_id: ISSUE-XX
-phase: pickup | understand | design | environment | plan | implement | verify | pr | review | cleanup | done
+phase: <current phase name from lifecycle>
 ---
 
 ## Summary

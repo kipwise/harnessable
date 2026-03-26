@@ -1,7 +1,7 @@
 ---
 name: harness-setup
-description: Scan your codebase, assess workflow readiness, and generate a phased implementation workflow tailored to your repo.
-user-invokable: true
+description: Discover your team's development lifecycle through a deep dive conversation, then generate a phased workflow tailored to how you actually work.
+user-invocable: true
 safety: read-heavy
 ---
 
@@ -18,29 +18,58 @@ When invoked, print this banner before doing anything else:
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝╚══════╝
 ```
 
-Then, before anything else, **read the existing agent-facing config** if one exists — `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `GEMINI.md`, or similar. This gives you a head start on project context, team conventions, tech stack, and workflow preferences. Use what you learn to skip redundant questions and ask smarter ones.
+Then, before anything else, **read the existing agent-facing config** if one exists — `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `GEMINI.md`, or similar. This gives you a head start on project context, team conventions, tech stack, and workflow preferences. Use what you learn to score coverage against the seven dimensions (see Phase 0) and determine which deep dive questions to skip.
 
-Then output the intro and **in the same message**, use the Agent tool with `run_in_background: true` to dispatch the scan (Phase 1). Do NOT wait for the scan to return. Immediately start asking the user questions (Phase 2) in the same response.
+Then output the intro and **in the same message**, use the Agent tool with `run_in_background: true` to dispatch the scan (Phase 1). Do NOT wait for the scan to return. Immediately start the deep dive (Phase 2) in the same response.
 
 <CRITICAL>
-You MUST use `Agent` with `run_in_background: true` for the scan. Do NOT use the Explore agent type in the foreground. Do NOT wait for scan results before asking questions. The scan and questions happen simultaneously — the user should see your first question within seconds, not after a multi-minute scan.
+You MUST use `Agent` with `run_in_background: true` for the scan. Do NOT use the Explore agent type in the foreground. Do NOT wait for scan results before asking questions. The scan and deep dive happen simultaneously — the user should see your first question within seconds, not after a multi-minute scan.
 </CRITICAL>
 
-Output this intro, then ask your first question right after it:
+Output this intro, then ask your first deep dive question right after it:
 
 > **What is this?** Harnessable gives AI agents a disciplined, phased workflow for shipping software. Instead of one big prompt, every task follows focused phases — each with explicit instructions and an exit gate. A universal engine orchestrates them through a state file.
 >
 > ```
-> Launcher → Engine → [understand] → [execute] → [verify] → [ship] → COMPLETE
+> Launcher → Engine → [phase 1] → [phase 2] → ... → [phase N] → COMPLETE
 > ```
 >
-> I'm scanning your codebase in the background. Let me ask you a few questions while that runs.
+> I'm scanning your codebase in the background. Let me learn about how you work while that runs.
+
+---
+
+## Phase 0: Read Existing Config
+
+Read `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `GEMINI.md` — whatever exists. Score coverage against seven dimensions to determine which deep dive questions are needed:
+
+| Dimension | Status |
+|-----------|--------|
+| Tech stack | known / unknown |
+| Commands | known / unknown |
+| Lifecycle steps | known / unknown |
+| Ownership boundaries | known / unknown |
+| Verification strategies | known / unknown |
+| Conventions/constraints | known / unknown |
+| Gates/handoffs | known / unknown |
+
+The question count maps to how many dimensions are unknown:
+
+| Unknown dimensions | Questions needed |
+|---|---|
+| 5-7 (no config) | 6 |
+| 3-4 (tech stack known) | 4-5 |
+| 1-2 (lifecycle partially known) | 3-4 |
+| 0 (fully documented) | 3 (verification only) |
+
+Minimum is always 3 (narrative, ownership, failure points) because even fully documented workflows have implicit knowledge.
 
 ---
 
 ## Phase 1: Scan the Codebase (background agent)
 
 Use `Agent` tool with `run_in_background: true` to dispatch a scan agent. You will be notified when it completes. Do NOT poll or wait for it.
+
+The scan validates and enriches the deep dive — it does NOT drive phase selection. Phases come from the human's description of their workflow.
 
 The scan agent should explore:
 
@@ -58,385 +87,355 @@ The scan agent should explore:
 
 The agent should return a structured summary of everything found — including the list of installed skills with their names and descriptions — and what remains unclear.
 
-## Phase 2: Ask (in parallel with scan)
+---
 
-Start asking questions immediately — don't wait for the scan to complete. Use AskUserQuestion (or the platform's equivalent) for each question. For multiple-choice, present numbered options.
+## Phase 2: Deep Dive (in parallel with scan)
 
-Some questions may become unnecessary once the scan finishes (e.g., "What test framework?" if the scan found vitest). That's fine — skip questions the scan already answered if its results arrive while you're still asking.
+This is the core of setup. Start the deep dive immediately — don't wait for the scan to complete. Use AskUserQuestion (or the platform's equivalent) for each question.
 
-### Questions to ask (skip what the scan already answered)
+The six first principles serve as a **listening framework** — use them to parse the human's narrative and identify gaps. They are NOT a questionnaire. The human never hears "what's the trigger for this step?"
 
-**Team & Process:**
-- Who works on this repo? (solo dev, small team, large team, mix of humans and agents)
-- How are PRs reviewed? (required approvals, self-merge for small changes)
-- Should agents work autonomously or check in frequently?
+- **Trigger** — something causes work to begin
+- **Artifact** — each step produces something that didn't exist before
+- **Verification** — artifacts must be proven correct through the running system
+- **Destination** — artifacts must reach where they have effect
+- **Ownership** — each step has an owner (human, agent, or automated)
+- **Constraints** — each step has rules (explicit or implicit)
 
-**Workflow:**
-- What PM tool do you use? (Linear, Jira, GitHub Issues, none)
-- What's your branching model? (trunk-based, feature branches, gitflow)
-- What must pass before a PR? (tests, lint, type-check, build)
+### Question 1 — The Narrative (always asked)
 
-**Pain Points:**
-- What's the most frustrating part of your current workflow with agents?
-- Where do things break down? (quality, speed, coordination, context loss, environment)
-- What have you tried that worked well?
+> "Walk me through the last thing your team shipped — from the moment it started to the moment it was done. Include the boring parts."
 
-Skip questions where the answer is clear from the scan.
+If existing config describes conventions but not lifecycle:
 
-## Phase 3: Assess & Select
+> "Your config describes [tech stack / conventions]. But I don't know your workflow yet. Walk me through the last thing your team shipped — from the moment it started to the moment it was done."
+
+Listen for all six principles. Extract steps. Most principles (Trigger, Artifact, Verification, Destination, Ownership) surface from this single narrative answer.
+
+### Question 2 — Ownership Map (always asked)
+
+Present the extracted lifecycle back to the human:
+
+> "Here's what I heard:
+> 1. [step] → [step] → [step] → ... → [step]
+>
+> For each step, who should own it — you, the agent, or automated?"
+
+This defines which steps become phase skills (agent), gates (human), or checklist items (automated).
+
+### Question 3 — Failure Points (always asked)
+
+> "Where do things typically break or get stuck?"
+
+Surfaces verification gaps, pain points, and friction that the concept library can address.
+
+### Question 4 — Gates (skip if Q2 already made gates clear)
+
+> "Where do you need to approve before the agent continues?"
+
+### Question 5 — Conventions (skip if existing config covers constraints)
+
+> "For the steps the agent will own — what would a new engineer get wrong?"
+
+### Question 6 — Scan Enrichment (after scan returns)
+
+> "I found [tools/configs] in your repo. Here's how that maps to what you described:
+> - [step X]: I'll use `[exact command]` for this
+> - [step Y]: I found [tool] but you didn't mention it — include it?
+> - [step Z]: You mentioned [thing] but I couldn't find it — where is it?"
+
+**Environment isolation probe:** If the scan detected Docker Compose, a database, or a dev server, AND the user didn't already describe isolation, ask:
+
+> "I found [Docker Compose / PostgreSQL / dev server] in your repo. When you have multiple features in flight — do they share the same database and ports, or does each get its own? And how do you clean up when a feature is done?"
+
+This surfaces whether to generate environment setup and cleanup phases with isolation (worktrees, per-feature DBs, dynamic ports) or keep it simple (shared environment). Don't assume isolation is needed — many solo developers share one database and that's fine.
+
+---
 
 <HARD-GATE>
-Do NOT start Phase 3 until BOTH the background scan agent has returned AND you have the user's answers. If the scan is still running when the user finishes answering, tell the user "Waiting for the codebase scan to finish..." and wait. You will be automatically notified when it completes — do NOT poll, do NOT start a duplicate scan, do NOT use SendMessage to check on it. Just wait. If the user is still answering when the scan finishes, finish asking.
+Do NOT start Phase 3 until BOTH the background scan agent has returned AND you have the deep dive answers. If the scan is still running when the user finishes answering, tell the user "Waiting for the codebase scan to finish..." and wait. You will be automatically notified when it completes — do NOT poll, do NOT start a duplicate scan, do NOT use SendMessage to check on it. Just wait. If the user is still answering when the scan finishes, finish asking.
 </HARD-GATE>
 
-Present the assessment and collect selections in the terminal.
+---
 
-### Step 1: Codebase Profile
+## Phase 3: Synthesize Lifecycle Document
 
-Output a summary of what you found:
+Write to `.harness/lifecycle.md` for session resilience. If the session drops between synthesis and skill generation, the lifecycle document survives and can be read on resume. This file is overwritten on each `/harness-setup` run.
+
+Produce from deep dive + scan:
 
 ```
-## Codebase Profile
+Work unit: [description]
+Typical size: [timeframe]
 
-| Area | Details |
-|------|---------|
-| Language | TypeScript (Node.js) |
-| Framework | Express + Prisma |
-| Tests | Vitest, 47 test files |
-| CI | GitHub Actions (3 workflows) |
-| Deploy | Railway via Dockerfile |
-| Database | PostgreSQL (Prisma migrations) |
-| PM Tool | Linear (KIP-XX pattern) |
+Lifecycle:
+  1. [Step name in their words]
+     Owner: human | agent | automated
+     Trigger: [what starts this step]
+     Artifact: [what it produces]
+     Verification: [how correctness is checked]
+     Destination: [where output goes]
+     Constraints: [rules]
+     Gate: [what must be true to proceed]
+  2. ...
+
+Agent-owned phases (become phase skills):
+  - [list]
+
+Human-owned gates (become status: "waiting"):
+  - [list]
+
+Automated steps (become checklist items):
+  - [list]
+
+Profiles:
+  [default]: all phases
+  [lighter]: skip [phases] — for [simpler work]
+  [lightest]: only [phases] — for [trivial changes]
+
+Friction-to-concept matches:
+  [pain point] → [concept]
 ```
 
-### Step 2: Readiness Assessment
+---
 
-**Be honest.** Present what's ready and what's not:
+## Phase 4: Present & Confirm
 
-**What's ready** — capabilities the codebase already has (e.g., "Strong CI pipeline with 5 checks", "Docker Compose dev environment")
+Show the lifecycle to the human for approval:
 
-**What's missing** — constraints and gaps (e.g., "No environment isolation — multiple agents will conflict on ports and DB")
+> **Your workflow:**
+>
+> | Phase | Owner | Produces | Verified by | Gate |
+> |-------|-------|----------|-------------|------|
+> | [name] | Agent | [artifact] | [method] | [condition] |
+> | [name] | You | [decision] | — | Your approval |
+>
+> **Profiles:**
+> - `[name]`: [phases] — for [when]
+>
+> **Concepts I'd recommend based on your pain points:**
+> - [concept]: [one sentence]
+>
+> **Launcher name:** What should I call it? (default: `/implement`)
+>
+> Does this look right?
 
-**Readiness rules:**
-- If they can't isolate environments → they're **not ready for orchestration** (multiple agents would overlap). Say this clearly. They're ready for a **single implementation agent**, which is still very useful.
-- If they have no CI → the verify phase can only run local checks. Suggest they set up CI as a next engineering step — Harnessable can't solve that for them.
-- If they have no PM tool → the pickup phase accepts plain text descriptions instead of issue fetching. That's fine.
-- Don't promise what the harness can't deliver. Be upfront about what's an engineering problem vs. what Harnessable can actually help with.
+Human can adjust phases, ownership, names, concepts.
 
-### Step 3: Phase Selection
+### Human-Owned Gates
 
-Present mandatory and optional phases. Use AskUserQuestion for each optional phase.
+When the engine encounters a phase with `status: "waiting"`, it announces what it's waiting for and stops. The human resolves the gate by re-invoking the launcher:
 
-**Mandatory phases** (always included, just list them):
-- **understand** — always needed
-- **execute** — always needed
-- **verify** — always needed
-- **ship** — always needed
+1. Human re-invokes `/<launcher>` (or resumes the session)
+2. Launcher reads state file, finds the `waiting` phase
+3. Launcher presents: "Phase [name] is waiting for your approval. [context from outputs]. Approve?"
+4. Human approves → launcher sets status to `done`, engine continues to next phase
+5. Human rejects → launcher sets status to `blocked` with reason, engine stops
 
-**Optional phases** — ask one at a time. Only show phases relevant to this codebase:
-- **pickup** — only if PM tool detected
-- **design** — only if frontend/UI framework detected
-- **environment** — only if database or dev server detected
-- **plan** — show for non-trivial projects
-- **cleanup** — automatically included if environment is included
+---
 
-For each optional phase, ask:
+## Phase 5: Write Harness Context
 
-> **Include the [phase] phase?**
-> [One sentence explaining what it does for this codebase.]
-> (yes / no)
-
-### Step 4: Concept Selection
-
-Only show concepts the codebase is ready for. Don't show concepts with unmet prerequisites (e.g., don't show orchestration if they can't isolate environments).
-
-For each relevant concept, ask:
-
-> **Adopt [concept name]?**
-> [One sentence explaining what it does.] [One sentence on what changes in the workflow.]
-> (yes / skip for now)
-
-### Step 5: Name Your Launcher
-
-Ask the user what they want to call their main workflow command. Suggest a default based on the project:
-
-> **What should I call your launcher skill?** This is the command you'll invoke to start a task (e.g., `/implement`, `/build`, `/dev`, `/ship`).
-> Default: `/implement`
-
-Use their choice throughout the generated skills. If they accept the default, use `/implement`.
-
-### Step 6: Skill Integration
-
-If the scan found non-Harnessable skills in the project's skill directories (`.claude/skills/`, `.cursor/skills/`, `.agents/`), present each relevant one to the user. ONLY use skills from the scan results — do NOT offer system-level skills, plugin skills, or skills from your own loaded context. Skip this step entirely if the scan reported "none found".
-
-For each relevant skill found, ask:
-
-> **Use `/<skill-name>` in the harness?**
-> [One sentence on what it does — from its SKILL.md description.] I'd integrate it into the **[phase]** phase — [one sentence on how].
-> (yes / no)
-
-Only reference skills the user approves. Skip this step entirely if no relevant skills were found by the scan.
-
-### Step 7: Engineering Recommendations
-
-For things Harnessable can't solve (missing CI, no PM tool), list them as recommendations:
-
-> **Suggested next steps** (outside of Harnessable):
-> - Set up CI — without it, the verify phase can only run local checks
-> - Consider environment isolation — needed before multi-agent work
-
-Before starting generation, tell the user:
-
-> I'm going to generate your harness now — this creates several skill files, updates your config, and initializes `.harness/`. You may be prompted to approve file writes. This takes a couple of minutes.
-
-## Phase 4: Write Harness Context
-
-Synthesize findings into a `## Harness Context` section:
-
-```markdown
-## Harness Context
-
-Persistent engineering workflow context. Generated by `/harness-setup`.
-
-### Repository
-[Monorepo/polyrepo, language, framework, package manager, key directories]
-
-### Verification
-[Exact commands for: build, test, lint, type-check, format. What must pass before PR.]
-
-### CI/CD
-[CI system, required checks, deploy target, preview environment pattern]
-
-### Project Management
-[PM tool, issue format, issue ID pattern, what "ready" looks like]
-
-### Branching & Shipping
-[Branching model, branch naming convention, merge strategy, release process]
-
-### Team & Process
-[Team size, review process, agent autonomy level, off-limits areas]
-
-### Environment
-[Dev server command, database setup, required env vars, ports]
-```
-
-Write to the AI config file (this is for agents to read — separate from `HARNESS.md` which is for humans):
+Synthesize findings into a `## Harness Context` section. Write to the AI config file:
 - **Claude Code**: `CLAUDE.md`
 - **Cursor**: `.cursorrules`
 - **Gemini CLI**: `GEMINI.md`
 
-## Phase 5: Initialize .harness/
+```markdown
+## Harness Context
 
-Create the `.harness/` directory in the project root. This is the harness's own space — separate from the user's codebase, never touching their code or docs.
+### Repository
+[from scan]
+
+### Workflow Lifecycle
+[lifecycle document in human-readable form]
+
+### Verification
+[per-phase verification strategies, enriched with exact commands from scan]
+
+### Conventions
+[constraints from deep dive, enriched with scan findings]
+
+### Team & Process
+[ownership map, gates, autonomy level]
+
+### CI/CD
+[from scan]
+
+### Project Management
+[from scan + deep dive if PM tool discussed]
+```
+
+---
+
+## Phase 6: Initialize .harness/
+
+Create the `.harness/` directory in the project root:
 
 ```
 .harness/
+├── lifecycle.md          # written in Phase 3, overwritten each setup run
 ├── conversations/        # per-implementation records (phase progress, decisions, evidence)
 └── retros/               # past retro results
 ```
 
-No harness-level state file — `state.json` is only created per-task at runtime by the launcher (it tracks lifecycle phase progression). Harness-level information (adopted concepts, generated skills) is derivable: check which skills exist in the skill directory and read `HARNESS.md`.
+Conversations and retros should be committed to the repo — `/harness-retro` reads them to identify cross-round patterns and improve the workflow over time. Do NOT add `.harness/` to `.gitignore`.
 
-Conversations and retros should be committed to the repo — `/harness-learn` reads them to identify cross-round patterns and improve the workflow over time. Do NOT add `.harness/` to `.gitignore`.
+Note: `lifecycle.md` is already present from Phase 3. The `.harness/` directory may have been created then — ensure `conversations/` and `retros/` subdirectories exist.
 
-## Phase 6: Generate Skills
+---
 
-Generate the **engine + launcher + phase skills architecture** based on the user's codebase and choices. Read [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md) for the full architecture reference — state file schema, templates, and concept-to-phase mapping.
+## Phase 7: Generate Skills
 
-### 6a. Determine Lifecycle Phases
+Based on the lifecycle document, generate the skill architecture:
 
-Based on scan results and user answers, decide which phases this codebase needs:
+### One Launcher (user-invocable)
 
-| Phase | Include when | Scan signal |
-|-------|-------------|-------------|
-| **pickup** | PM tool exists | Linear/Jira/GitHub Issues config, issue ID patterns in commits |
-| **understand** | Always | — |
-| **design** | Frontend-heavy, complex UI, or user has design pain points | UI framework detected, design system, `needs-design` patterns |
-| **environment** | DB, dev server, or multi-agent work | docker-compose, database config, dev server scripts, migration tools |
-| **plan** | Non-trivial projects | Default for full/feature profiles; skip for quick/bugfix |
-| **execute** | Always | — |
-| **verify** | Always | Content shaped by test/lint/type-check tools detected |
-| **ship** | Always | Content shaped by CI, branching model, review process |
-| **cleanup** | When environment phase exists | Mirrors environment phase teardown |
+Named by the user (default: `/implement`). The launcher:
+1. Fetches the task — from the detected PM tool or accepts a plain text description
+2. Determines profile — from `--profile` flag, default, or task labels
+3. Creates branch (or worktree if Environment Isolation is adopted)
+4. Writes `.harness/state.json` with the lifecycle array — phases and statuses based on profile. Skipped phases get `{ "status": "skipped", "reason": "profile:<name>" }`
+5. Invokes `/harness-engine` with the state file path
+6. Session recovery — if state file already exists for this task, invoke engine directly (it resumes from current phase)
 
-**Minimal harness** (solo dev, no DB, no PM tool): `understand → execute → verify → ship` — 4 phase skills + launcher.
+### One Phase Skill per Agent-Owned Step
 
-**Full harness** (team, DB, PM tool, frontend): all 9 phases.
+Named `harness-<phase-name>` (using the phase names from the deep dive, NOT a preset list). Each phase skill contains:
 
-### 6b. Determine Profiles
+- **Artifact** — what it must produce (from the Artifact principle)
+- **Verification** — how correctness is checked (from the Verification principle)
+- **Constraints** — rules to follow (from the Constraints principle)
+- **Checklist** — machine-readable items derived from gate conditions. Every item starts as `null` and must be set to `true`, `false`, or `"skipped"`
+- **Escalation rules** — when to stop and ask the human (ambiguous requirements, architecture decisions, stuck after 2 attempts)
+- **Conversation file recording** — write progress to `.harness/conversations/` at each phase transition
 
-Profiles control which phases are skipped. Based on the codebase:
+### Profile Examples Across Domains
 
-| Profile | Always available? | Condition |
-|---------|------------------|-----------|
-| **full** | Yes | Default — all phases active |
-| **feature** | Yes | Skip design (unless flagged) |
-| **bugfix** | Yes | Skip design + plan |
-| **quick** | Yes | execute → verify → ship only |
-| **foundation** | Only if backend + frontend distinction exists | Monorepo with separate API/UI layers |
-| **design** | Only if frontend exists | UI framework detected |
+Profile names and shapes come from the deep dive (work unit variance), not from a fixed matrix. Here are examples to illustrate:
 
-### 6c. Generate Build Launcher
+**Web team:**
+- `feature`: pickup → understand → plan → execute → verify → ship
+- `bugfix`: pickup → execute → verify → ship
+- `quick`: execute → verify → ship
 
-Generate a launcher skill using the name the user chose in Step 5 (default: `/implement`):
+**AI app team:**
+- `full`: design-prompt → build-eval → iterate → shadow → promote
+- `prompt-only`: iterate → shadow → promote
+- `guardrail`: add-rule → test-adversarial → deploy
 
-1. **Fetches the task** — from the detected PM tool (Linear MCP, GitHub CLI, Jira) or accepts a plain text description if no PM tool
-2. **Determines profile** — from `--profile` flag, default, or task labels
-3. **Creates branch** (or worktree if Environment Isolation is adopted)
-4. **Writes `.harness/state.json`** with the lifecycle array — phases and statuses based on profile. Skipped phases get `{ "status": "skipped", "reason": "profile:<name>" }`
-5. **Invokes `/harness-engine`** with the state file path
-6. **Session recovery** — if state file already exists for this task, invoke driver directly (it resumes from current phase)
+**Data team:**
+- `experiment`: hypothesis → explore → engineer → train → evaluate → deploy
+- `retrain`: train → evaluate → deploy
+- `hotfix`: fix-pipeline → verify → deploy
 
-Use the launcher template from [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md). Fill in with actual commands.
+**DevOps team:**
+- `change`: plan → apply-staging → verify → apply-prod → monitor
+- `hotfix`: apply-staging → verify → apply-prod → monitor
 
-### 6d. Generate Phase Skills
+### Coordinated Workflows
 
-For each phase in the lifecycle, generate a `harness-build-{phase}/SKILL.md` following the phase skill template. Each skill MUST have:
+If the deep dive reveals coordination needs (human described parallel work or multi-agent scenarios), generate:
 
-**1. Actual commands** — no `<placeholder>` syntax. Use the real commands from the harness context.
+- A coordination launcher (separate from the solo launcher)
+- Phase skills for the coordination lifecycle (phases come from the deep dive, NOT a preset list)
+- A coordinated state file with the `tickets` block and `coordination` field
 
-**2. Checklist items** — machine-readable items the driver validates. Every checklist item starts as `null` and must be set to `true`, `false`, or `"skipped"` by the phase skill.
-
-**3. Escalation rules** — when to stop and ask the human (ambiguous requirements, architecture decisions, stuck after 2 attempts).
-
-**4. Recording baked in** — at each phase transition, write progress to `.harness/conversations/`. Not as extra ceremony — as a natural part of completing each phase.
-
-**5. Integrate approved skills** — for each installed skill the user approved in Step 6, add an instruction in the relevant phase skill to invoke it. Don't duplicate what the skill already does — just invoke it at the right moment. Only include skills the user explicitly approved.
-
-Here's what each phase skill should contain (adapt to the codebase):
-
-**pickup** — Fetch issue from PM tool, display title/AC/labels. Validate AC are testable (stop if vague). Mark issue "In Progress". Checklist: `issue_fetched`, `ac_clear`.
-
-**understand** — Read architecture docs, specs, existing code in areas being changed. Identify files to touch, patterns to follow. Fetch external library docs if needed. Checklist: `code_explored`, `scope_clear`.
-
-**design** — Brainstorm approach for complex changes. For UI: prototype, take screenshots, present for feedback. Checklist: `approach_decided`, `design_approved` (if applicable).
-
-**environment** — Install dependencies with actual install command. Set up isolated database (if applicable). Start dev server on dedicated port. Health check. Create conversation file. Checklist: `deps_installed`, `server_healthy`.
-
-**plan** — Break work into discrete tasks. Get approval (solo: human, teammate: orchestrator or auto). Checklist: `plan_created`, `plan_approved`.
-
-**execute** — Sync from base branch. Implement changes task by task. Add tests. Escalate after 2 failed fix attempts. Checklist: `tasks_complete`, `tests_pass`.
-
-**verify** — Run full verification suite (actual commands). Prove each AC through running system — classify by strategy (API: curl, UI: browser automation, infra: DB queries). Record evidence. Checklist: `verification_passes`, `ac_proved`.
-
-**ship** — Sync from base, re-verify. Push branch, create PR with AC evidence. Monitor CI, fix failures. Update PM tool status. Checklist: `pr_created`, `ci_green`.
-
-**cleanup** — Tear down task-specific resources created by the environment phase (stop dev server, remove worktree). Only cleans up what the harness created — never touches pre-existing resources. Checklist: `resources_released`.
-
-### 6e. Present and Write
-
-1. Present the full architecture to the user: launcher + N phase skills
-2. Show each skill's key content (don't just list names — show what each does)
-3. After approval, write all skills to the project's skill directory
-4. Update `HARNESS.md` with the generated skills list
-
-### Generation Rules
-
-1. **Use the name the user chose** for the launcher
-2. **Use actual commands** — no `<placeholder>` syntax in any generated skill
-3. **Present skills** to the user before writing
-4. **Write as SKILL.md** in the project's skill directory (one directory per skill)
-5. **Phase skills are not user-invocable** — only the launcher is
-6. **All skills write state to `.harness/`** — not to the user's codebase
-7. **Reference the harness-refs principles** where relevant
-8. **40-140 lines per phase skill** — if a skill grows beyond this, it's doing too much
+If no coordination is needed, skip entirely — teams adopt coordination later via `/harness-retro` when friction signals appear.
 
 ### Concept Integration
 
-For each concept the user chose to adopt, integrate it into the appropriate phase skills (see the concept-to-phase mapping in [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md)):
+For each concept the user chose to adopt, integrate it into the appropriate phase skills. The specific phases affected depend on the discovered lifecycle. Accepted concepts are woven into the skills, not bolted on as separate steps.
 
-- **Environment Isolation** → generates the environment + cleanup phase skills
-- **Quality Gates** → adds parallel review agent step to the verify phase skill
-- **PM Integration** → adds PM tool calls to pickup and ship phase skills
-- **AC Discipline** → adds AC validation to the pickup phase skill
-- **Multi-Agent Coordination** → generates the full orchestrate launcher + orchestrate phase skills (analyze, dispatch, collect, setup, quality, merge, conclude)
+### Generation Rules
 
-## Phase 7: Write HARNESS.md
+1. **Use actual commands** — no `<placeholder>` syntax in any generated skill
+2. **Present skills** to the user before writing
+3. **Write as SKILL.md** in the project's skill directory (one directory per skill)
+4. **Phase skills are not user-invocable** — only the launcher is
+5. **40-140 lines per phase skill** — if a skill grows beyond this, it's doing too much
+6. **Reference the harness-refs principles** where relevant
+
+---
+
+## Phase 7b: Validate Skills Against Scan
+
+After generating skills but before writing HARNESS.md, cross-reference the generated phase skills against the scan findings to catch obvious gaps. This is a mechanical check, not a second brainstorm.
+
+### Check 1: Prerequisites
+
+For each agent-owned phase skill, check: does this phase depend on something the scan detected (Docker, database, dev server, package install) that no earlier phase sets up?
+
+Examples of what to catch:
+- A phase runs `docker compose` commands but no earlier phase starts Docker
+- A phase tests API endpoints but no earlier phase runs database migrations
+- A phase assumes dependencies are installed but no earlier phase runs the install command
+
+### Check 2: Handoffs
+
+Does each phase produce something that a later phase consumes? Is the handoff explicit in the state file outputs?
+
+Examples:
+- Plan phase produces ACs, but does build phase read them from state file?
+- Build phase produces commits, but does PR phase reference the branch?
+
+### Check 3: Unused Scan Findings
+
+Are there tools, scripts, or configs the scan found that no phase skill uses?
+
+Examples:
+- Scan found a `cleanup` or `teardown` script but no phase cleans up
+- Scan found a seed data script but no phase loads fixtures before testing
+- Scan found a code formatter but no phase runs it
+
+### Present Gaps
+
+If gaps are found, present them concisely:
+
+> **Pre-flight check — I found some gaps when cross-referencing your skills against the codebase:**
+>
+> - Your build phase runs `compose.sh run` but nothing starts Docker first. Add an environment setup step? (yes/no)
+> - Your test phase starts the server but doesn't run migrations. Add that to the startup? (yes/no)
+> - I found `compose.sh down` in your scripts but no phase cleans up. Add a cleanup step? (yes/no)
+>
+> These would prevent hard failures on the first run.
+
+For each "yes": update the affected phase skill (add the missing step) or generate a new phase skill if needed. Update the lifecycle document, launcher profile matrix, and state file template to match.
+
+If no gaps found, skip this phase silently — don't announce "no gaps found."
+
+---
+
+## Phase 8: Write HARNESS.md
 
 Generate a `HARNESS.md` at the project root. This is the human-readable front door to the harness — it explains what harness engineering is, how the workflow works for this project, and references everything in `.harness/`.
 
-```markdown
-# Harness
+The content reflects the discovered lifecycle — not a preset template. Include:
 
-Engineering workflow for agent-driven development on this project. Generated by [Harnessable](https://github.com/kipwise/harnessable).
+- What harness engineering is and why phases matter
+- The architecture diagram (launcher → engine → phase skills)
+- The harness loop: `/harness-setup` (shape) → real work → `/harness-retro` (reflect) → reshape
+- Current workflow: each phase with what it does, key commands, exit gate (using the actual phases generated)
+- Profile matrix showing which phases each profile includes
+- Adopted concepts and what they mean for this project
+- Generated skills table (skill name, purpose, user-invocable yes/no)
+- Core principles (verify by proof, persist everything, adapt to repo, fail fast, self-improve)
+- Harness data locations (`.harness/conversations/`, `.harness/retros/`)
+- How to reshape (run `/harness-retro` after work, re-run `/harness-setup` to rethink)
 
-## What is Harness Engineering?
+`HARNESS.md` is committed to the repo — it's documentation for the team.
 
-Harness engineering gives AI agents a disciplined, phased workflow for shipping software. Instead of letting agents work ad-hoc (skipping verification, losing context, producing inconsistent quality), every task follows clear phases with explicit instructions and exit gates.
+---
 
-The harness improves over time — after real work, `/harness-learn` reviews what happened and reshapes the workflow based on evidence.
-
-## Architecture
-
-```
-/<launcher-name> ISSUE-123
-  → creates state file + branch
-  → invokes universal engine
-    → engine loops through phase skills:
-      [phase 1] → [phase 2] → ... → [phase N]
-    → each phase: focused skill (40-140 lines) with checklist + exit gate
-  → engine announces "WORKFLOW COMPLETE"
-```
-
-**Why phase skills:** A single big skill loses agent attention by late phases. Phase skills keep each turn focused — the agent sees one phase at a time, not the whole workflow.
-
-## The Loop
-
-```
-/harness-setup (shape) → real work → /harness-learn (reflect) → /harness-setup ...
-```
-
-## Current Workflow
-
-[List each phase with: what it does, key commands, exit gate. Use the actual phases generated for this codebase.]
-
-## Profiles
-
-[Profile matrix showing which phases each profile includes.]
-
-## Adopted Concepts
-
-[List each concept the team has adopted and what it means for this project.]
-
-## Generated Skills
-
-| Skill | Purpose | User-invocable |
-|-------|---------|---------------|
-| `/<launcher>` | Build launcher — creates state, invokes engine | Yes |
-| `harness-build-understand` | Explore code, identify scope | No |
-| ... | ... | ... |
-| `harness-engine` | Universal state machine (ships with Harnessable) | No |
-
-## Principles
-
-1. **Verify by proof, not assumption** — run the system, capture output, cite evidence
-2. **Persist everything** — progress recorded to .harness/conversations/ at each phase transition
-3. **Adapt to the repo** — skills use this project's actual commands
-4. **Fail fast, surface early** — hit a blocker? Flag it, don't spiral
-5. **Self-improve** — /harness-learn reviews rounds and reshapes the workflow
-
-## Harness Data
-
-- `.harness/conversations/` — per-implementation records (phase progress, decisions, evidence)
-- `.harness/retros/` — past retrospective results
-
-## Reshaping
-
-Run `/harness-learn` after a few rounds of work to review friction and reshape the workflow.
-Run `/harness-setup` to re-examine the codebase and explore new concepts.
-```
-
-Adapt the template to fit what was actually generated. `HARNESS.md` is committed to the repo — it's documentation for the team.
-
-## Phase 8: Orient
+## Phase 9: Orient
 
 After writing context, initializing `.harness/`, and generating skills, output:
 
 > You're set up. Here's what was created:
 >
 > **Architecture:**
-> - `/<launcher-name>` — your build launcher (the skill you invoke)
-> - N phase skills — focused work per phase (understand, execute, verify, ship, etc.)
+> - `/<launcher-name>` — your launcher (the skill you invoke)
+> - N phase skills — focused work per phase ([list phase names from the discovered lifecycle])
 > - `harness-engine` — universal state machine that loops through phases (ships with Harnessable)
 >
 > **Data:**
@@ -445,18 +444,18 @@ After writing context, initializing `.harness/`, and generating skills, output:
 >
 > **How to use it:** Run `/<launcher-name> ISSUE-123` (or a plain text description). The launcher creates a state file, the engine loops through your phase skills — each one does focused work with clear exit gates. Progress is recorded automatically.
 >
-> **How it improves:** After a few rounds of real work, run `/harness-learn`. It reads the recorded conversations, maps friction to specific phase skills, and suggests targeted improvements.
+> **How it improves:** After a few rounds of real work, run `/harness-retro`. It reads the recorded conversations, maps friction to specific phase skills, and suggests targeted improvements.
 >
-> The harness loop: `/harness-setup` (shape) → real work → `/harness-learn` (reflect) → reshape
+> The harness loop: `/harness-setup` (shape) → real work → `/harness-retro` (reflect) → reshape
 
 ---
 
 ## Re-running
 
 `/harness-setup` can be run again anytime:
-- After `/harness-learn` surfaces new concepts to explore
+- After `/harness-retro` surfaces new concepts to explore
 - After the codebase changes significantly (new tools, new deploy target)
 - When the team grows or workflow changes
 - When you want to rethink the harness shape
 
-On re-runs, read `HARNESS.md` and existing skills. Show what's changed since last exploration. Regenerate or update skills as needed.
+On re-runs, read `HARNESS.md`, `.harness/lifecycle.md`, and existing skills. Show what's changed since last exploration. Regenerate or update skills as needed.
