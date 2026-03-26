@@ -2,7 +2,10 @@
 name: harness-setup
 description: Scan your codebase, assess workflow readiness, and generate a phased implementation workflow tailored to your repo.
 user-invokable: true
+safety: read-heavy
 ---
+
+**Safety:** This skill is primarily read-only during setup. It scans your codebase (read), asks you questions, then generates new skill files and a `.harness/` directory — all with your approval before each write. It does not modify your existing code, delete files, run builds, or start services. Every file write is presented for approval first.
 
 When invoked, print this banner before doing anything else:
 
@@ -318,7 +321,7 @@ Here's what each phase skill should contain (adapt to the codebase):
 
 **ship** — Sync from base, re-verify. Push branch, create PR with AC evidence. Monitor CI, fix failures. Update PM tool status. Checklist: `pr_created`, `ci_green`.
 
-**cleanup** — Stop dev server, drop database, remove worktree, delete local branch. Checklist: `resources_released`.
+**cleanup** — Tear down task-specific resources created by the environment phase (stop dev server, remove worktree). Only cleans up what the harness created — never touches pre-existing resources. Checklist: `resources_released`.
 
 ### 6e. Present and Write
 
