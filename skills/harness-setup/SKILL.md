@@ -86,7 +86,7 @@ Skip questions where the answer is clear from the scan.
 ## Phase 3: Assess & Select
 
 <HARD-GATE>
-Do NOT start Phase 3 until BOTH the background scan agent has returned AND you have the user's answers. If the scan is still running when the user finishes answering, wait for it. If the user is still answering when the scan finishes, finish asking. You need both to generate an accurate assessment.
+Do NOT start Phase 3 until BOTH the background scan agent has returned AND you have the user's answers. If the scan is still running when the user finishes answering, tell the user "Waiting for the codebase scan to finish..." and wait. You will be automatically notified when it completes — do NOT poll, do NOT start a duplicate scan, do NOT use SendMessage to check on it. Just wait. If the user is still answering when the scan finishes, finish asking.
 </HARD-GATE>
 
 Present the assessment and collect selections in the terminal.
