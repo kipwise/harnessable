@@ -90,63 +90,60 @@ Map friction to the workflow:
 - Group by concept: "These 3 friction points all relate to Environment Isolation"
 - Which friction points are addressed by existing skills vs. which need new concepts
 
-### 3c. Harness Issue List
-List all harness issues found:
-- Severity (turns wasted, human interventions needed)
-- Proposed fix (specific skill edit)
-- Status (new, repeated, resolved)
+Ask: "Does this match your experience? Anything I missed?" Wait for the user's response before proceeding.
 
-Ask: "Does this match your experience? Anything I missed?"
+## Phase 4: Walk Through Findings & Suggestions
 
-## Phase 4: Concept Suggestions
+<CRITICAL>
+Do NOT dump all findings and suggestions in one message. Present each one individually using AskUserQuestion, wait for the user's decision, then move to the next. This prevents the user from having to scroll back through a wall of text.
+</CRITICAL>
 
-Based on the friction evidence, suggest concepts.
+### 4a. Actionable Findings (one at a time)
 
-### 4a. Evidence-Based Suggestions
-For each concept with concrete evidence from this round:
-- **Friction observed** — specific incidents, mapped to the phase where they occurred
-- **Concept that addresses it** — one sentence
-- **What would change** — which phase skills get augmented or generated (see concept-to-phase mapping in [phase-skill-architecture.md](../harness-refs/reference/phase-skill-architecture.md))
-- **Skill preview** — what the new/modified phase skill would look like for this codebase
+For each finding that has a proposed fix (harness bug, harness gap, process improvement), present it individually and ask for a decision:
 
-### 4b. Interaction
-For each concept suggestion, ask the user:
-- **Adopt** — generate the skill now
-- **Not now** — acknowledge but don't re-suggest until new evidence
-- **Not relevant** — dismiss permanently for this project
+> **Finding: [Brief title]**
+> **Phase:** [which phase skill]
+> **What happened:** [evidence — be specific]
+> **Proposed change:** [exact edit to the phase skill]
+> **Recommendation:** Apply / Skip
+>
+> (apply / skip)
+
+Wait for the user's answer before showing the next finding. Track which ones they approved.
+
+Skip "not actionable" findings in this step — they'll appear in the summary.
+
+### 4b. Concept Suggestions (one at a time)
+
+For each concept with concrete friction evidence (max 2-3 per retro), present individually:
+
+> **Suggestion: [Concept name]**
+> **Friction observed:** [specific incidents from this round]
+> **What would change:** [which phase skills get augmented or generated]
+> **Recommendation:** Adopt
+>
+> (adopt / not now / not relevant)
+
+Wait for the user's answer before showing the next suggestion.
 
 **Rules:**
 - Suggest at most 2-3 concepts per retro
 - Only suggest with concrete evidence from this round
 - Respect previous "not now" and "not relevant" decisions
 
-## Phase 5: Summary
+### 4c. Summary
 
-Present a text summary:
+After all decisions are collected, output a brief summary:
 
 ```
-## Harness Retro: [round description]
-
-### Harness Issues
-[Specific skill edits proposed — highest impact first]
-
-### Concept Suggestions
-[Friction → concept mapping, with adopt/defer/dismiss options]
-
-### Process Improvements
-[Patterns that worked well — propose codifying]
-
-### Discoveries
-[Non-obvious findings worth recording]
-
----
-Summary: N findings. M proposed skill changes. K concept suggestions.
-Which should I apply? (all / specific numbers / none)
+Decisions: N findings reviewed, M approved. K concepts suggested, J adopted.
+Applying changes now.
 ```
 
-## Phase 6: Apply Changes
+## Phase 5: Apply Changes
 
-After human approval:
+Apply only what the user approved:
 
 ### Fix Harness Issues
 - Edit specific **phase skill files** with approved changes — small, targeted edits to 40-140 line files
@@ -166,8 +163,7 @@ For adopted concepts OR improvements to existing phase skills:
 
 ### Update Harness State
 - Write retro results to `.harness/retros/YYYY-MM-DD-retro.md`
-- Update `HARNESS.md` if concepts or workflow changed
-- **Update `HARNESS.md`** if the workflow changed: new concepts adopted, skills generated/updated, workflow steps added or removed. `HARNESS.md` should always reflect the current state of the harness.
+- Update `HARNESS.md` if the workflow changed: new concepts adopted, skills generated/updated, workflow steps added or removed. `HARNESS.md` should always reflect the current state.
 
 ### Update Harness Context
 - If new skills or workflow changes affect the context, update it
